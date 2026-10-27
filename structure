@@ -1,0 +1,46 @@
+.
+├── manifest.json                  Manifeste MV3
+├── README.md                      Doc complète (arbo + rôle de chaque fichier)
+├── .gitignore
+├── _locales/fr/messages.json      Nom / description localisés (__MSG_…__)
+├── icons/                         icon.svg + icon-16/32/48/96/128.png
+├── shared/
+│   ├── constants.js               Version, clés de stockage, messages, réglages par défaut
+│   ├── utils.js                   parseNumber("13,5"), parseScale("12/20"), formatFr, debounce
+│   └── settings.js                get/set/reset + onChange (synchronisé via storage.onChanged)
+├── background/
+│   ├── background.js              Event page : init, routeur, diffusion des réglages aux onglets
+│   ├── messages.js                Table type → handler
+│   └── badge.js                   Pastille sur l'icône
+├── content/
+│   ├── main.js                    Bootstrap : thème, montage/démontage des features par route
+│   ├── core/
+│   │   ├── dom.js                 $ / $$ / create / waitFor / onRouteChange
+│   │   ├── messaging.js           Wrapper tolérant de sendMessage
+│   │   ├── registry.js            EDP.registerFeature({ id, routes, settingKey, mount, unmount })
+│   │   └── router.js              Détection notes / EDT / cahier de textes (URL + DOM)
+│   ├── data/
+│   │   ├── model.js               Note normalisée : /20, coefficient, statut, counted
+│   │   ├── adapter.js             Façade EDP.data — source interchangeable
+│   │   ├── source-dom.js          Lecture de la page connectée (seul fichier à adapter au site)
+│   │   └── source-api.js          Source API réservée, disponible() => false (et pourquoi)
+│   ├── features/
+│   │   ├── theme.js               Attributs data-edp* sur <html>
+│   │   ├── dark-mode.js           Suivi de prefers-color-scheme
+│   │   ├── grades.js              Carte « moyennes calculées » + <details> du calcul
+│   │   ├── averages.js            Calculs purs + neededGrade() (objectif)
+│   │   ├── simulator.js           Simulateur matière / note / coef / objectif
+│   │   ├── timetable.js           Surbrillance du cours en cours
+│   │   └── homework.js            Tri par échéance, retards, 48 h
+│   └── ui/
+│       ├── components.js          card / row / badge / button
+│       └── panel.js               Pastille ED+ et mini-panneau en Shadow DOM
+├── styles/
+│   ├── tokens.css  base.css  dark.css
+│   ├── components/panel.css
+│   └── features/{grades,timetable,homework}.css
+├── popup/
+│   ├── popup.html                 Réglages : activation, thème, modules, reset
+│   ├── popup.css                  Clair + sombre système
+│   └── popup.js                   Liaison aux réglages partagés
+└── scripts/make-icons.py          Régénération des icônes (Pillow, hors exécution)
