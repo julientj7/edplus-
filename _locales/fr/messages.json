@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "École Directe Plus+",
+    "description": "Nom de l'extension, tel qu'affiché dans le navigateur et sur AMO (45 caractères max)."
+  },
+  "extDescription": {
+    "message": "Moyennes recalculées, simulateur de notes, emploi du temps et devoirs plus lisibles, mode sombre. Non officiel : tout reste dans votre navigateur, aucun identifiant et aucun serveur tiers.",
+    "description": "Description affichée dans le gestionnaire de modules et sur la fiche AMO (132 caractères max)."
+  }
+}

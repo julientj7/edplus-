@@ -1,0 +1,219 @@
+/* ==========================================================================
+   styles/components/panel.css — la pastille et le tiroir
+   --------------------------------------------------------------------------
+   Ce fichier n'est chargé QUE dans le shadow root du panneau (voir
+   content/ui/panel.js). Il ne contient donc que la mise en page du panneau ;
+   les primitives (.edp-stat, .edp-table, .edp-button…) sont dans base.css, qui
+   est réadopté dans le shadow root en même temps.
+
+   Conséquence pratique : les styles du site ne peuvent pas atteindre ces
+   éléments, et les nôtres ne peuvent pas atteindre le site.
+   ========================================================================== */
+
+:host {
+  all: initial; /* la page ne transmet aucun style héritable */
+  font-family: var(--edp-font);
+}
+
+/* --- Pastille flottante ----------------------------------------------- */
+.edp-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--edp-border);
+  border-radius: 999px;
+  background: var(--edp-surface);
+  color: var(--edp-text);
+  font: 600 12.5px/1 var(--edp-font);
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--edp-shadow);
+  cursor: pointer;
+}
+
+.edp-launcher:hover {
+  border-color: var(--edp-accent);
+  color: var(--edp-accent);
+}
+
+.edp-launcher__mark {
+  color: var(--edp-accent);
+  font-weight: 800;
+}
+
+/* Le tiroir ouvert masque la pastille : elle n'a plus rien à faire là. */
+:host([data-edp-open="1"]) .edp-launcher,
+#edp-panel-host[data-edp-open="1"] .edp-launcher {
+  display: none;
+}
+
+/* --- Tiroir ----------------------------------------------------------- */
+.edp-drawer {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: min(var(--edp-panel-width), calc(100vw - 36px));
+  max-height: min(72vh, 620px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius);
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  font: 400 13px/1.35 var(--edp-font);
+  box-shadow: var(--edp-shadow);
+  overflow: hidden;
+}
+
+.edp-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--edp-space-2);
+  padding: var(--edp-space-3) var(--edp-space-3);
+  border-bottom: 1px solid var(--edp-border);
+  background: var(--edp-surface);
+}
+
+.edp-drawer__title {
+  font-weight: 650;
+  font-size: 13.5px;
+}
+
+.edp-drawer__close {
+  border: none;
+  background: transparent;
+  color: var(--edp-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.edp-drawer__close:hover {
+  color: var(--edp-negative);
+}
+
+.edp-drawer__body {
+  padding: var(--edp-space-3);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.edp-drawer__status {
+  margin: 0;
+  padding: var(--edp-space-2) var(--edp-space-3);
+  border-top: 1px solid var(--edp-border);
+  background: var(--edp-surface);
+  color: var(--edp-muted);
+  font-size: 11px;
+}
+
+.edp-drawer__status[data-tone="warning"] {
+  color: var(--edp-warning);
+}
+
+.edp-drawer__status[data-tone="negative"] {
+  color: var(--edp-negative);
+}
+
+.edp-drawer__footer {
+  padding: var(--edp-space-2) var(--edp-space-3);
+  border-top: 1px solid var(--edp-border);
+  background: var(--edp-surface);
+  color: var(--edp-muted);
+  font-size: 10.5px;
+}
+
+.edp-section + .edp-section {
+  margin-top: var(--edp-space-3);
+}
+
+.edp-section__title {
+  margin: 0 0 var(--edp-space-2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--edp-muted);
+}
+
+/* ==========================================================================
+   Contrôles rapides — boutons ronds au-dessus de la pastille
+   --------------------------------------------------------------------------
+   Empilés verticalement, alignés à droite, juste au-dessus de la pastille.
+   Aucune couleur en dur : ils suivent le thème par héritage des variables.
+   ========================================================================== */
+
+.edp-quick-bar {
+  position: fixed;
+  right: 18px;
+  bottom: 62px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--edp-space-2);
+}
+
+/* Le tiroir ouvert occupe le coin : on masque la barre plutôt que de la
+   superposer aux cartes (le thème reste accessible depuis le popup). */
+:host([data-edp-open="1"]) .edp-quick-bar,
+#edp-panel-host[data-edp-open="1"] .edp-quick-bar {
+  display: none;
+}
+
+.edp-quick {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--edp-border);
+  border-radius: 999px;
+  background: var(--edp-surface);
+  color: var(--edp-text);
+  box-shadow: var(--edp-shadow-sm);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease,
+    transform 120ms ease;
+}
+
+.edp-quick:hover {
+  border-color: var(--edp-accent);
+  color: var(--edp-accent);
+  transform: translateY(-1px);
+}
+
+.edp-quick:active {
+  transform: translateY(0);
+  background: var(--edp-surface-3);
+}
+
+.edp-quick:focus-visible {
+  outline: 2px solid var(--edp-accent);
+  outline-offset: 2px;
+}
+
+/* État « sombre actif » : le bouton lui-même s'allume. */
+.edp-quick[aria-pressed="true"] {
+  background: var(--edp-accent);
+  border-color: var(--edp-accent);
+  color: #0b1220;
+}
+
+.edp-quick[aria-pressed="true"]:hover {
+  color: #0b1220;
+}
+
+.edp-quick__icon {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+}
+
+.edp-quick__icon svg {
+  display: block;
+}

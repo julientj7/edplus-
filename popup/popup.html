@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr" data-edp-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>École Directe Plus+</title>
+    <!--
+      Le popup réutilise les mêmes jetons de design et les mêmes primitives que
+      le panneau : une seule source de vérité pour les couleurs, et un thème
+      identique partout. styles/tokens.css agit ici sur le <html> du popup, dont
+      data-edp-theme est posé par popup/popup.js.
+    -->
+    <link rel="stylesheet" href="../styles/tokens.css" />
+    <link rel="stylesheet" href="../styles/base.css" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body class="edp-popup">
+    <header class="edp-popup__header">
+      <div>
+        <h1 class="edp-popup__title">École Directe Plus+</h1>
+        <p class="edp-popup__version" id="version">v—</p>
+      </div>
+      <label class="edp-switch" title="Désactive tout sans désinstaller l’extension">
+        <input type="checkbox" id="enabled" />
+        <span>Activée</span>
+      </label>
+    </header>
+
+    <main class="edp-popup__main">
+      <!-- Résumé : moyenne, dernière note, période -->
+      <section class="edp-card" id="summary">
+        <div class="edp-card__header">
+          <div class="edp-card__titles">
+            <h3 class="edp-card__title">Ma moyenne</h3>
+            <p class="edp-card__hint" id="summary-source">calcul local, depuis la page affichée</p>
+          </div>
+        </div>
+        <div class="edp-card__body" id="summary-body">
+          <p class="edp-muted" id="summary-empty">
+            Ouvrez École Directe dans un onglet pour voir vos moyennes calculées.
+          </p>
+          <div class="edp-row" id="summary-stats"></div>
+          <p class="edp-muted" id="summary-last"></p>
+          <button type="button" class="edp-button edp-button--primary" id="open-site">
+            Ouvrir École Directe
+          </button>
+        </div>
+      </section>
+
+      <!-- Emploi du temps et devoirs : renseignés par les fonctionnalités -->
+      <section class="edp-card" id="sections" hidden>
+        <div class="edp-card__body" id="sections-body"></div>
+      </section>
+
+      <!-- Réglages rapides (le reste se règle dans le panneau, sur la page) -->
+      <section class="edp-card">
+        <div class="edp-card__header">
+          <h3 class="edp-card__title">Réglages</h3>
+        </div>
+        <div class="edp-card__body">
+          <label class="edp-field">
+            <span class="edp-field__label">Thème</span>
+            <select class="edp-input" id="theme">
+              <option value="auto">Suivre le système</option>
+              <option value="light">Clair</option>
+              <option value="dark">Sombre</option>
+            </select>
+          </label>
+
+          <fieldset class="edp-fieldset">
+            <legend class="edp-field__label">Modules</legend>
+            <label class="edp-switch"><input type="checkbox" id="module-grades" /><span>Moyennes calculées</span></label>
+            <label class="edp-switch"><input type="checkbox" id="module-simulator" /><span>Simulateur de notes</span></label>
+            <label class="edp-switch"><input type="checkbox" id="module-timetable" /><span>Emploi du temps</span></label>
+            <label class="edp-switch"><input type="checkbox" id="module-homework" /><span>Cahier de textes</span></label>
+            <label class="edp-switch">
+              <input type="checkbox" id="module-theme-toggle" /><span>Bouton mode sombre</span>
+            </label>
+            <label class="edp-switch">
+              <input type="checkbox" id="badge" /><span>Pastille « nouvelle note »</span>
+            </label>
+          </fieldset>
+
+          <div class="edp-row">
+            <button type="button" class="edp-button edp-button--ghost" id="reset">
+              Réinitialiser les réglages
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <p class="edp-popup__privacy">
+        Aucun identifiant, aucune donnée scolaire ne quitte ce navigateur. Cet
+        outil n’est pas affilié à Aplim / École Directe.
+      </p>
+    </main>
+
+    <!-- Ordre imposé : constantes, utilitaires, réglages, puis la logique. -->
+    <script src="../shared/constants.js"></script>
+    <script src="../shared/utils.js"></script>
+    <script src="../shared/settings.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+/* ==========================================================================
+   styles/features/homework.css — devoirs en retard ou imminents
+   --------------------------------------------------------------------------
+   Classes posées par content/features/homework.js. Le but est qu'un élève voie
+   en une seconde ce qui est en retard, sans qu'on réorganise la page à sa
+   place (réorganiser le DOM d'un site tiers, c'est le meilleur moyen de casser
+   sa propre extension).
+   ========================================================================== */
+
+tr.edp-late > td,
+li.edp-late {
+  background-color: color-mix(in srgb, var(--edp-negative) 12%, transparent) !important;
+  border-left: 3px solid var(--edp-negative);
+}
+
+tr.edp-soon > td,
+li.edp-soon {
+  background-color: color-mix(in srgb, var(--edp-warning) 10%, transparent) !important;
+  border-left: 3px solid var(--edp-warning);
+}
+
+tr.edp-done > td,
+li.edp-done {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+/* Marqueur texte, pour rester lisible sans couleur (daltonisme, impression). */
+tr.edp-late > td:first-child::before {
+  content: "en retard · ";
+  font-weight: 700;
+  color: var(--edp-negative);
+}
+
+tr.edp-soon > td:first-child::before {
+  content: "bientôt · ";
+  font-weight: 700;
+  color: var(--edp-warning);
+}

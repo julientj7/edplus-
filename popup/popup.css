@@ -1,0 +1,103 @@
+/* ==========================================================================
+   popup/popup.css — mise en page du popup
+   --------------------------------------------------------------------------
+   Les couleurs et les primitives viennent de styles/tokens.css et de
+   styles/base.css, déjà chargés dans popup.html. Ici, uniquement la mise en
+   page propre au popup. Aucune couleur en dur : le thème sombre fonctionne donc
+   sans une seule ligne supplémentaire.
+   ========================================================================== */
+
+body.edp-popup {
+  width: 348px;
+  margin: 0;
+  padding: 0;
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  font: 400 13px/1.4 var(--edp-font);
+}
+
+.edp-popup__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--edp-space-2);
+  padding: var(--edp-space-3);
+  border-bottom: 1px solid var(--edp-border);
+  background: var(--edp-surface);
+}
+
+.edp-popup__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.edp-popup__version {
+  margin: 2px 0 0;
+  font-size: 10.5px;
+  color: var(--edp-muted);
+}
+
+.edp-popup__main {
+  padding: var(--edp-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--edp-space-2);
+  max-height: 560px;
+  overflow-y: auto;
+}
+
+.edp-popup__main .edp-card {
+  margin-bottom: 0;
+}
+
+.edp-popup__privacy {
+  margin: var(--edp-space-2) 0 0;
+  font-size: 10.5px;
+  color: var(--edp-muted);
+  text-align: center;
+}
+
+/* --- Interrupteurs ---------------------------------------------------- */
+.edp-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.edp-switch input {
+  accent-color: var(--edp-accent);
+  margin: 0;
+}
+
+.edp-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: var(--edp-space-2);
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-sm);
+}
+
+/* --- Détail d'une matière dans le résumé ------------------------------ */
+.edp-subject-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--edp-space-2);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--edp-surface-2);
+  font-size: 12px;
+}
+
+.edp-subject-line:last-child {
+  border-bottom: none;
+}
+
+.edp-subject-line__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}

@@ -1,0 +1,360 @@
+/* ==========================================================================
+   styles/base.css — primitives d'interface + hôte du panneau
+   --------------------------------------------------------------------------
+   Ce fichier est chargé DEUX FOIS, volontairement :
+     1. injecté dans la page par content_scripts.css -> style la bande de
+        résumé insérée dans le DOM du site ;
+     2. réadopté dans le shadow root du panneau par content/ui/panel.js ->
+        les CSS de la page n'entrent pas dans un shadow root, il faut donc la
+        même feuille à l'intérieur.
+
+   Toutes les classes sont préfixées « edp- » : aucune chance de collision avec
+   le site, et l'ajout/retrait est trivial en cas de besoin.
+   ========================================================================== */
+
+/* --- Hôte du panneau --------------------------------------------------- */
+/* Le nœud est ajouté directement à <body> : tout son contenu est dans le
+   shadow root, donc insensible aux styles du site. */
+#edp-panel-host {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: var(--edp-z);
+  font-family: var(--edp-font);
+  line-height: 1.35;
+}
+
+#edp-panel-host *,
+#edp-panel-host *::before,
+#edp-panel-host *::after {
+  box-sizing: border-box;
+}
+
+/* --- Carte ------------------------------------------------------------- */
+.edp-card {
+  background: var(--edp-surface);
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius);
+  color: var(--edp-text);
+  padding: var(--edp-space-3);
+  margin-bottom: var(--edp-space-2);
+  font-size: 13px;
+}
+
+.edp-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--edp-space-2);
+}
+
+.edp-card__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.edp-card__hint {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--edp-muted);
+}
+
+.edp-card__body > * + * {
+  margin-top: var(--edp-space-2);
+}
+
+.edp-card__actions {
+  display: flex;
+  gap: var(--edp-space-2);
+}
+
+/* --- Statistique ------------------------------------------------------- */
+.edp-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--edp-space-2);
+  border-radius: var(--edp-radius-sm);
+  background: var(--edp-bg);
+  border: 1px solid var(--edp-border);
+  min-width: 0;
+}
+
+.edp-stat__label {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--edp-muted);
+}
+
+.edp-stat__value {
+  font-size: 17px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.edp-stat__hint {
+  font-size: 11px;
+  color: var(--edp-muted);
+}
+
+.edp-tone-accent .edp-stat__value,
+.edp-stat.edp-tone-accent .edp-stat__value {
+  color: var(--edp-accent);
+}
+
+.edp-tone-positive {
+  color: var(--edp-positive);
+}
+
+.edp-tone-negative {
+  color: var(--edp-negative);
+}
+
+.edp-tone-warning {
+  color: var(--edp-warning);
+}
+
+.edp-tone-muted {
+  color: var(--edp-muted);
+}
+
+/* --- Disposition ------------------------------------------------------- */
+.edp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--edp-space-2);
+}
+
+.edp-row > * {
+  flex: 1 1 0;
+  min-width: 96px;
+}
+
+/* --- Pastille / étiquette --------------------------------------------- */
+.edp-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--edp-accent-soft);
+  color: var(--edp-accent);
+  white-space: nowrap;
+}
+
+.edp-badge.edp-tone-muted {
+  background: var(--edp-surface-2);
+  color: var(--edp-muted);
+}
+
+/* --- Écart (+0,35 / -0,20) -------------------------------------------- */
+.edp-delta {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* --- Boutons ----------------------------------------------------------- */
+.edp-button {
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: var(--edp-radius-sm);
+  border: 1px solid var(--edp-border);
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  cursor: pointer;
+}
+
+.edp-button:hover {
+  border-color: var(--edp-accent);
+  color: var(--edp-accent);
+}
+
+.edp-button--primary {
+  background: var(--edp-accent);
+  border-color: var(--edp-accent);
+  color: #fff;
+}
+
+.edp-button--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--edp-muted);
+}
+
+/* --- Champs ----------------------------------------------------------- */
+.edp-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--edp-space-2);
+}
+
+.edp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.edp-field__label {
+  color: var(--edp-muted);
+}
+
+.edp-field__hint {
+  color: var(--edp-muted);
+  font-size: 10.5px;
+}
+
+.edp-input {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 7px;
+  border-radius: var(--edp-radius-sm);
+  border: 1px solid var(--edp-border);
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  width: 100%;
+  min-width: 0;
+}
+
+.edp-result > * + *,
+.edp-target > * + * {
+  margin-top: var(--edp-space-2);
+}
+
+/* --- Tableaux --------------------------------------------------------- */
+.edp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.edp-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--edp-muted);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--edp-border);
+}
+
+.edp-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--edp-surface-2);
+  vertical-align: middle;
+}
+
+.edp-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.edp-table caption {
+  caption-side: top;
+  text-align: left;
+  color: var(--edp-muted);
+  font-size: 11px;
+  padding-bottom: 4px;
+}
+
+/* --- Blocs repliables et notes ---------------------------------------- */
+.edp-details {
+  border-top: 1px solid var(--edp-border);
+  padding-top: var(--edp-space-2);
+}
+
+.edp-details__summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--edp-accent);
+}
+
+.edp-details__body {
+  padding-top: var(--edp-space-1);
+  font-size: 11.5px;
+  color: var(--edp-muted);
+}
+
+.edp-list {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--edp-muted);
+}
+
+.edp-list li + li {
+  margin-top: 2px;
+}
+
+.edp-note {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.edp-muted {
+  margin: 0;
+  font-size: 11px;
+  color: var(--edp-muted);
+}
+
+/* --- Bande de résumé insérée dans la page ----------------------------- */
+/* `!important` assumé : on doit passer devant les styles du site, sur un bloc
+   qui n'utilise que nos classes. */
+.edp-inline-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--edp-space-3);
+  margin: var(--edp-space-3) 0 !important;
+  padding: var(--edp-space-3) var(--edp-space-4) !important;
+  border: 1px solid var(--edp-border) !important;
+  border-radius: var(--edp-radius) !important;
+  background: var(--edp-surface) !important;
+  color: var(--edp-text) !important;
+  font-family: var(--edp-font) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.edp-inline-summary .edp-stat {
+  flex: 0 1 auto;
+  min-width: 132px;
+  background: var(--edp-bg) !important;
+}
+
+/* --- Accessibilité ----------------------------------------------------- */
+/* Texte lu par les lecteurs d'écran, invisible à l'œil. Utilisé par le bouton
+   de thème : son icône ne dit rien, son aria-label dit tout. */
+.edp-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Anneau de focus homogène : la navigation clavier reste visible partout. */
+.edp-button:focus-visible,
+.edp-input:focus-visible,
+.edp-details__summary:focus-visible {
+  outline: 2px solid var(--edp-accent);
+  outline-offset: 2px;
+}
+
+/* Respect de « réduire les animations » : on garde les changements d'état,
+   on retire les mouvements. */
+@media (prefers-reduced-motion: reduce) {
+  .edp-button,
+  .edp-quick,
+  .edp-notes-table tbody tr > td {
+    transition: none;
+  }
+}

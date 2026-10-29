@@ -1,0 +1,230 @@
+/* ==========================================================================
+   manifest.annotated.jsonc — LE MÊME MANIFESTE, COMMENTÉ CLÉ PAR CLÉ
+   --------------------------------------------------------------------------
+   ⚠️  CE FICHIER N'EST PAS CHARGÉ PAR FIREFOX.  ⚠️
+
+   Le format de manifeste des extensions est du JSON strict : ni //, ni /* *​/,
+   ni virgule finale. Un manifeste contenant des commentaires est rejeté au
+   chargement (erreur de syntaxe, pas un avertissement). Les commentaires vivent
+   donc ici, et `scripts/check-manifest.mjs` vérifie en continu que ce document
+   décrit EXACTEMENT le contenu de manifest.json (il retire les commentaires,
+   compare les deux structures, et échoue si l'un dérive de l'autre).
+
+   Le fichier est aussi exclu du paquet livré (voir .web-ext-config.mjs).
+   ========================================================================== */
+{
+  /* Version du format de manifeste. 3 = Manifest V3, disponible dans Firefox
+     depuis la version 109 exactement — d'où strict_min_version ci-dessous. */
+  "manifest_version": 3,
+
+  /* Nom et description localisés. Les valeurs réelles sont dans
+     _locales/fr/messages.json ; __MSG_…__ est résolu par le navigateur, ce qui
+     permet de traduire la fiche sans toucher au manifeste. */
+  "name": "__MSG_extName__",
+  "short_name": "ED+",
+  "description": "__MSG_extDescription__",
+
+  /* Version de l'extension. À incrémenter à chaque envoi sur AMO : une version
+     déjà publiée ne peut pas être remplacée. */
+  "version": "1.0.0",
+
+  /* Locale utilisée quand la langue de l'utilisateur n'a pas de traduction. */
+  "default_locale": "fr",
+
+  /* ------------------------------------------------------------------------
+     PARAMÈTRES PROPRES À FIREFOX
+     ------------------------------------------------------------------------ */
+  "browser_specific_settings": {
+    "gecko": {
+      /* Identifiant unique et stable de l'extension.
+         Obligatoire en Manifest V3 côté Firefox. Il sert de clé d'identité pour
+         les mises à jour et pour AMO : le changer après publication crée une
+         extension différente aux yeux du navigateur (profil utilisateur neuf,
+         pas de mise à jour possible). Le garder tel quel. */
+      "id": "ecole-directe-plus@example.com",
+
+      /* Version minimale supportée : Firefox 109, première version grand public
+         à accepter Manifest V3.
+         ⚠️  CONSÉQUENCE À CONNAÎTRE (109 à 126) : les permissions d'hôte ne sont
+         pas accordées à l'installation sur ces versions ; l'utilisateur doit
+         les activer dans about:addons → Permissions. À partir de Firefox 127,
+         les permissions d'hôte déclarées ici ET dans content_scripts sont
+         affichées à l'installation et accordées immédiatement. Voir le README,
+         section « Permissions ». */
+      "strict_min_version": "109.0",
+
+      /* Déclaration de collecte de données, exigée par AMO pour toute nouvelle
+         extension depuis le 3 novembre 2025.
+         "none" est ici FACTUEL, pas une formule : l'extension n'émet aucune
+         requête réseau, ne lit aucun identifiant et ne transmet rien. La clé est
+         lue par Firefox 140+ ; les versions antérieures l'ignorent, elles
+         n'affichent simplement pas l'écran de consentement correspondant. */
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+
+  /* ------------------------------------------------------------------------
+     ICÔNES
+     ------------------------------------------------------------------------ */
+  /* Chemins relatifs à la racine du projet. Tailles fournies parce qu'elles
+     sont toutes utilisées par Firefox selon le contexte :
+       16  → favicon d'onglet et menu,
+       32  → barre d'outils et gestionnaire de modules sous Windows,
+       48  → gestionnaire de modules (about:addons),
+       96  → affichage haute densité (HiDPI),
+       128 → fiche AMO et installation.
+     Fichiers générés par scripts/make-icons.py : les régénérer, jamais les
+     éditer à la main. */
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+
+  /* ------------------------------------------------------------------------
+     BOUTON DE BARRE D'OUTILS ET POPUP
+     ------------------------------------------------------------------------ */
+  "action": {
+    "default_title": "École Directe Plus+",
+    /* Page affichée au clic sur l'icône : moyenne, dernière note, cours suivant,
+       devoirs, et les réglages rapides. */
+    "default_popup": "popup/popup.html",
+    /* Icônes du bouton lui-même : 16 et 32 suffisent, c'est la seule paire
+       demandée pour ce contexte. */
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+
+  /* ------------------------------------------------------------------------
+     SCRIPT D'ARRIÈRE-PLAN
+     ------------------------------------------------------------------------ */
+  /* MV3 impose un script d'arrière-plan NON persistant (event page) : Firefox
+     le décharge quand il est inactif, tout état doit donc vivre dans
+     storage.local — c'est le cas ici.
+
+     Les fichiers sont chargés DANS CET ORDRE et partagent la même portée
+     globale : shared/*.js doivent précéder background.js, qui utilise
+     EDP.settings, EDP.messages et EDP.badge.
+     (Sans cette liste ordonnée, on obtiendrait « EDP is not defined ».)
+
+     ⚠️  `background.service_worker` est VOLONTAIREMENT ABSENT.
+     Firefox n'implémente pas les service workers d'arrière-plan, et surtout :
+     avant Firefox 120, leur simple présence dans le manifeste empêchait
+     l'event page de démarrer. Comme l'objectif est la compatibilité Firefox 109+,
+     la clé ne doit pas être là. Pour produire un paquet Chromium plus tard, il
+     faudra l'ajouter dans un manifeste dédié à ce paquet. */
+  "background": {
+    "scripts": [
+      "shared/constants.js",
+      "shared/utils.js",
+      "shared/settings.js",
+      "background/messages.js",
+      "background/badge.js",
+      "background/background.js"
+    ]
+  },
+
+  /* ------------------------------------------------------------------------
+     PERMISSIONS
+     ------------------------------------------------------------------------ */
+  /* Une seule permission : `storage`, pour les réglages, le brouillon du
+     simulateur et le résumé lu par le popup. En local, jamais synchronisé.
+
+     Volontairement ABSENTES, et chacune pour une raison :
+       - "tabs"        : inutile, on n'a besoin que de l'identifiant de l'onglet
+                         actif, que tabs.query fournit sans cette permission ;
+       - "webRequest"  : l'extension n'intercepte aucun trafic ;
+       - "<all_urls>"  : elle ne lit que le site déclaré ci-dessous ;
+       - "notifications": rien n'est affiché hors du navigateur en v1.0. */
+  "permissions": ["storage"],
+
+  /* Domaine d'École Directe uniquement. Le joker de sous-domaine couvre
+     l'application (www.ecoledirecte.com) ET son API (api.ecoledirecte.com),
+     sans ouvrir l'accès à un seul autre site. */
+  "host_permissions": ["*://*.ecoledirecte.com/*"],
+
+  /* ------------------------------------------------------------------------
+     CONTENT SCRIPTS
+     ------------------------------------------------------------------------ */
+  /* Injectés sur les pages École Directe, et nulle part ailleurs. */
+  "content_scripts": [
+    {
+      /* Tableaux de correspondance d'hôtes : même périmètre que
+         host_permissions, auquel ils doivent rester synchronisés. */
+      "matches": ["*://*.ecoledirecte.com/*"],
+
+      /* "document_idle" : le DOM initial est disponible, sans ralentir
+         l'affichage de la page. Ne pas mettre "document_start" — le site est une
+         application qui remplit ses écrans en Ajax, et le calcul des moyennes a
+         besoin des tableaux déjà présents. C'est la raison pour laquelle
+         content/core/dom.js sait aussi ATTENDRE un sélecteur (waitFor). */
+      "run_at": "document_idle",
+
+      /* false : on ne s'injecte pas dans les iframes. Le site en utilise
+         (messagerie, aperçus) ; s'y injecter dupliquerait le panneau et
+         multiplierait les recalculs pour rien. */
+      "all_frames": false,
+
+      /* ⚠️  L'ORDRE COMPTE : ce sont des scripts « classic », pas des modules ES.
+         Ils partagent la même portée globale et se construisent donc par
+         couches successives, chacune s'appuyant sur la précédente :
+           1. shared/          → crée l'espace de noms EDP (sinon rien ne marche)
+           2. core/            → helpers DOM, messagerie, routeur, registre
+           3. data/            → modèle, sources, façade
+           4. features/        → calculs et fonctionnalités, qui s'enregistrent
+           5. ui/              → composants et panneau
+           6. main.js          → orchestrateur, EN DERNIER : tout le reste doit
+                                 déjà être enregistré quand il démarre. */
+      "js": [
+        "shared/constants.js",
+        "shared/utils.js",
+        "shared/settings.js",
+        "content/core/dom.js",
+        "content/core/messaging.js",
+        "content/core/router.js",
+        "content/core/registry.js",
+        "content/data/model.js",
+        "content/data/source-dom.js",
+        "content/data/source-api.js",
+        "content/data/adapter.js",
+        "content/features/averages.js",
+        "content/features/theme.js",
+        "content/features/dark-mode.js",
+        "content/features/theme-toggle.js",
+        "content/features/grades.js",
+        "content/features/simulator.js",
+        "content/features/timetable.js",
+        "content/features/homework.js",
+        "content/ui/components.js",
+        "content/ui/panel.js",
+        "content/main.js"
+      ],
+
+      /* Feuilles de style injectées dans la page, dans cet ordre :
+           tokens.css  → variables de design (clair/sombre), posées sur :root ;
+                         elles traversent la frontière du Shadow DOM, ce qui
+                         permet au panneau d'hériter du thème ;
+           base.css    → primitives d'interface + position de l'hôte du panneau.
+                         Également réadopté DANS le shadow root par panel.js ;
+           dark.css    → surcharges du site en mode sombre (partie fragile) ;
+           features/*  → mise en forme ciblée : lisibilité du tableau de notes,
+                         surlignage du cours en cours, marquage des devoirs.
+         Les styles du tiroir (styles/components/panel.css) ne sont PAS ici :
+         ils sont chargés dans le shadow root, où ceux de la page n'entrent pas. */
+      "css": [
+        "styles/tokens.css",
+        "styles/base.css",
+        "styles/dark.css",
+        "styles/features/grades.css",
+        "styles/features/timetable.css",
+        "styles/features/homework.css"
+      ]
+    }
+  ]
+}

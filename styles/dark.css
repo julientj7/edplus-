@@ -1,0 +1,277 @@
+/* ==========================================================================
+   styles/dark.css — passage du SITE en sombre
+   --------------------------------------------------------------------------
+   ⚠️  PARTIE LA PLUS FRAGILE DU PROJET.  ⚠️
+
+   On ne réécrit PAS la feuille de style d'École Directe : on applique des
+   surcharges ciblées, actives seulement quand <html> porte data-edp-dark="1"
+   (posé par content/features/theme.js).
+
+   Règles de conduite — les respecter, c'est ce qui évite le sapin de Noël :
+     1. une couleur vient TOUJOURS d'un jeton de tokens.css, jamais d'un code
+        hexadécimal écrit à la main. Le thème se règle alors en un seul endroit ;
+     2. :where() garde une spécificité basse : nos sélecteurs pèsent
+        (0,1,1) — html[data-edp-dark] — et non le poids de la longue liste de
+        classes qu'on y met. Si le site cible un élément plus précisément que
+        nous, il doit pouvoir gagner ;
+     3. jamais de filtre d'inversion global (filter: invert(1)) : ça casse les
+        images, les graphiques et les PDF, sans rien expliquer à personne ;
+     4. une surcharge par symptôme constaté. Si un bloc reste blanc, on ajoute
+        SON sélecteur dans la bonne section, pas une règle plus large.
+
+   Pour calibrer : ouvrir la page, inspecter ce qui reste clair, ajouter le
+   sélecteur dans la section correspondante. `EDP.debug()` aide à vérifier que
+   le thème est bien actif.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   0. Socle : signaler au navigateur que la page est sombre
+   --------------------------------------------------------------------------
+   `color-scheme: dark` fait trois choses gratuitement, et correctement :
+   barres de défilement sombres, champs natifs (select, date, autofill) sombres,
+   et curseur/scrollbars cohérents. C'est la ligne la plus rentable du fichier.
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"] {
+  color-scheme: dark;
+  background-color: var(--edp-bg);
+  /* scrollbar-color est hérité : une seule déclaration suffit pour la page. */
+  scrollbar-color: var(--edp-line) transparent;
+}
+
+html[data-edp-dark="1"] body {
+  background-color: var(--edp-bg) !important;
+  color: var(--edp-text) !important;
+}
+
+/* Sélection de texte : par défaut elle est bleu clair sur blanc, illisible ici. */
+html[data-edp-dark="1"] ::selection {
+  background-color: color-mix(in srgb, var(--edp-accent) 38%, transparent);
+  color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   1. Conteneurs et grandes surfaces
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"]
+  :where(main, #conteneur, #container, #main, #page, #wrapper, .container, .contenu, .content, .wrapper, .page, .site, .layout) {
+  background-color: var(--edp-bg) !important;
+  color: var(--edp-text) !important;
+}
+
+/* Barres latérales, en-têtes et pieds de page : un palier au-dessus du fond,
+   sinon ils se fondent dans la page. */
+html[data-edp-dark="1"]
+  :where(nav, header, footer, aside, #menu, #sidebar, .sidebar, .menu, .navbar, .topbar, .breadcrumb, .fil-ariane) {
+  background-color: var(--edp-surface) !important;
+  border-color: var(--edp-border) !important;
+  color: var(--edp-text) !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. Tableaux — le cœur du problème de lisibilité
+   --------------------------------------------------------------------------
+   Trois principes, et aucun de plus :
+     - l'en-tête est visiblement distinct du corps (surface-2) ;
+     - les lignes alternées séparent les enregistrements sans quadrillage ;
+     - les traits horizontaux sont discrets, jamais des cases fermées.
+   Les nombres sont en chiffres tabulaires : les colonnes de notes s'alignent.
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"] :where(table) {
+  background-color: var(--edp-surface) !important;
+  border-color: var(--edp-border) !important;
+  color: var(--edp-text) !important;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-edp-dark="1"] :where(thead tr, thead th, thead td) {
+  background-color: var(--edp-surface-2) !important;
+  color: var(--edp-text) !important;
+  border-color: var(--edp-line) !important;
+  font-weight: 600;
+}
+
+html[data-edp-dark="1"] :where(tbody td, tbody th, tfoot td, tfoot th) {
+  background-color: transparent !important;
+  color: var(--edp-text) !important;
+  border-color: var(--edp-border) !important;
+}
+
+html[data-edp-dark="1"] :where(tbody tr:nth-child(even) > td, tbody tr:nth-child(even) > th) {
+  background-color: var(--edp-surface-2) !important;
+}
+
+/* Survol : le regard suit la ligne jusqu'à la note. Teinte d'accent très
+   faible (14 %) : suffisante pour suivre, invisible si on ne la cherche pas. */
+html[data-edp-dark="1"] :where(tbody tr:hover > td, tbody tr:hover > th) {
+  background-color: color-mix(in srgb, var(--edp-accent) 14%, transparent) !important;
+}
+
+/* Légendes et totaux : repère de fin de tableau. */
+html[data-edp-dark="1"] :where(caption, tfoot tr) {
+  color: var(--edp-muted) !important;
+  background-color: var(--edp-surface-2) !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Cartes, blocs et accordéons
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"]
+  :where(.card, .panel, .box, .bloc, .bloc-note, .liste, .list, .encart, .accordion, .accordion-item, .tile, .widget, .item, .ligne, .row-box) {
+  background-color: var(--edp-surface) !important;
+  border-color: var(--edp-border) !important;
+  color: var(--edp-text) !important;
+}
+
+/* Bloc sélectionné / actif : un palier de plus, pas de couleur criarde. */
+html[data-edp-dark="1"] :where(.active, .selected, .current, .is-active, [aria-current="true"], [aria-selected="true"]) {
+  background-color: var(--edp-surface-3) !important;
+  color: var(--edp-text) !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. Typographie
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"]
+  :where(h1, h2, h3, h4, h5, h6, legend, strong, b, dt, th, .titre, .title, .heading) {
+  color: var(--edp-text) !important;
+}
+
+/* Les paragraphes et libellés héritent : c'est plus sûr que de forcer une
+   couleur, car le site a souvent des textes volontairement colorés (alertes). */
+html[data-edp-dark="1"] :where(p, span, small, label, li, dd, .texte, .text) {
+  color: inherit !important;
+}
+
+html[data-edp-dark="1"] :where(.muted, .text-muted, .aide, .hint, .aide-saisie, .small, .note-aide) {
+  color: var(--edp-muted) !important;
+}
+
+/* Filet horizontal : sans ça, les séparateurs clairs deviennent des barres
+   blanches en travers de l'écran. */
+html[data-edp-dark="1"] :where(hr) {
+  border: none !important;
+  border-top: 1px solid var(--edp-border) !important;
+}
+
+/* --------------------------------------------------------------------------
+   5. Liens
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"] :where(a, a:visited, .lien, .link) {
+  color: var(--edp-accent) !important;
+}
+
+html[data-edp-dark="1"] :where(a:hover, a:focus-visible) {
+  color: color-mix(in srgb, var(--edp-accent) 80%, #ffffff) !important;
+}
+
+/* Anneau de focus visible au clavier, homogène dans toute la page. */
+html[data-edp-dark="1"] :where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--edp-accent) !important;
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   6. Formulaires (connexion, messagerie, saisie de note…)
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"] :where(input, select, textarea, .form-control, .champ) {
+  background-color: var(--edp-surface-2) !important;
+  color: var(--edp-text) !important;
+  border-color: var(--edp-line) !important;
+}
+
+html[data-edp-dark="1"] :where(input, textarea)::placeholder {
+  color: var(--edp-muted) !important;
+  opacity: 1; /* Firefox applique 0,54 par défaut : le texte devient illisible */
+}
+
+html[data-edp-dark="1"] :where(input[type="checkbox"], input[type="radio"], progress, meter) {
+  accent-color: var(--edp-accent);
+}
+
+html[data-edp-dark="1"] :where(button, .btn, .button, input[type="submit"], input[type="button"]) {
+  background-color: var(--edp-surface-2) !important;
+  color: var(--edp-text) !important;
+  border-color: var(--edp-line) !important;
+}
+
+html[data-edp-dark="1"] :where(button:hover, .btn:hover, .button:hover, input[type="submit"]:hover) {
+  background-color: var(--edp-surface-3) !important;
+  border-color: var(--edp-accent) !important;
+  color: var(--edp-text) !important;
+}
+
+/* Boutons d'action principale du site : on garde leur couleur d'accent, on
+   s'assure juste que le texte reste lisible dessus. */
+html[data-edp-dark="1"] :where(.btn-primary, .button-primary, .btn--primary, button[type="submit"]) {
+  background-color: var(--edp-accent) !important;
+  border-color: var(--edp-accent) !important;
+  color: #0b1220 !important;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   7. Fenêtres modales et voiles
+   --------------------------------------------------------------------------
+   École Directe en ouvre pour la double authentification et les détails de
+   note. Un voile blanc à 50 % sur un fond sombre éblouit : on l'assombrit.
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"] :where(.modal, .modal-content, .modal-body, .modal-header, .modal-footer, .dialog, [role="dialog"], .popup, .overlay > div, .fenetre) {
+  background-color: var(--edp-surface) !important;
+  border-color: var(--edp-border) !important;
+  color: var(--edp-text) !important;
+}
+
+html[data-edp-dark="1"] :where(.modal-backdrop, .backdrop, .overlay, .voile, .mask) {
+  background-color: rgba(3, 6, 12, 0.68) !important;
+}
+
+/* --------------------------------------------------------------------------
+   8. Éléments à protéger
+   --------------------------------------------------------------------------
+   Nos propres blocs, insérés dans le DOM du site, ne doivent JAMAIS être
+   altérés par les règles ci-dessus. Le panneau est à l'abri (shadow root) ;
+   la bande de résumé et le bouton de thème, non — d'où ces remises en état,
+   placées en fin de fichier pour passer après les surcharges générales.
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"] .edp-inline-summary,
+html[data-edp-dark="1"] .edp-inline-summary :where(*) {
+  background-color: transparent !important;
+  color: var(--edp-text) !important;
+  border-color: var(--edp-border) !important;
+}
+
+html[data-edp-dark="1"] .edp-inline-summary {
+  background-color: var(--edp-surface) !important;
+}
+
+html[data-edp-dark="1"] .edp-inline-summary .edp-stat,
+html[data-edp-dark="1"] .edp-inline-summary .edp-stat :where(*) {
+  background-color: var(--edp-bg) !important;
+}
+
+/* Les images, photos de classe, graphiques et PDF restent tels quels : une
+   photo inversée est un bug visuel évident, et un graphique illisible n'aide
+   personne. On se contente d'un léger adoucissement de l'éclat, réglable. */
+html[data-edp-dark="1"] :where(img, video, canvas, picture) {
+  filter: none !important;
+  opacity: 0.94;
+}
+
+/* Les icônes et pictogrammes monochromes restent lisibles sans retouche. */
+html[data-edp-dark="1"] :where(svg, .icon, .fa, .glyphicon) {
+  color: inherit;
+}
+
+/* --------------------------------------------------------------------------
+   9. Repliables
+   -------------------------------------------------------------------------- */
+html[data-edp-dark="1"] :where(details, summary, .detail, .accordeon) {
+  background-color: transparent !important;
+  color: var(--edp-text) !important;
+  border-color: var(--edp-border) !important;
+}
+
+html[data-edp-dark="1"] :where(summary) {
+  color: var(--edp-accent) !important;
+}

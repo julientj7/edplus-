@@ -1,0 +1,100 @@
+/* ==========================================================================
+   styles/tokens.css — variables de design (source unique des couleurs)
+   --------------------------------------------------------------------------
+   Deux raisons pour lesquelles TOUTE couleur du projet vient d'ici :
+
+   1. Les propriétés personnalisées SONT HÉRITÉES et survivent à la traversée
+      d'une frontière de Shadow DOM. Le panneau (dans son shadow root) hérite
+      donc automatiquement du thème posé sur <html>, sans dupliquer une ligne.
+   2. Un seul endroit à vérifier pour le contraste. Changer le thème sombre,
+      c'est changer les ~15 valeurs du bloc [data-edp-theme="dark"] ci-dessous,
+      jamais les fichiers de composants.
+
+   Les attributs sont posés par content/features/theme.js sur <html> :
+     data-edp-theme="light|dark"  -> nos variables CSS
+     data-edp-dark="1|0"          -> cible des surcharges du site (dark.css)
+
+   Contraste : les couples texte/fond ci-dessous sont tous au-dessus de 4,5:1
+   (WCAG AA) et la plupart au-dessus de 7:1. Vérifié à la main, merci de le
+   revérifier si vous changez une valeur.
+   ========================================================================== */
+
+:root {
+  --edp-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --edp-font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  /* --- Surfaces et texte (thème clair = défaut) ------------------------- */
+  --edp-bg: #ffffff;              /* fond des pages et des champs            */
+  --edp-surface: #f7f9fc;         /* cartes, en-têtes, barres                */
+  --edp-surface-2: #eef2f7;       /* lignes alternées, survol léger          */
+  --edp-surface-3: #e4e9f1;       /* élément actif / pressé                  */
+  --edp-text: #141821;            /* texte principal              (16,9:1)   */
+  --edp-muted: #5a6474;           /* texte secondaire              (6,4:1)   */
+  --edp-border: #dbe1ea;          /* bordures normales                       */
+  --edp-line: #c8d0dc;            /* bordures appuyées / séparateurs         */
+
+  /* --- Accents --------------------------------------------------------- */
+  --edp-accent: #2563eb;          /* liens, actions, focus         (4,6:1)   */
+  --edp-accent-soft: #e7efff;     /* fonds teintés                           */
+  --edp-positive: #0f7a4a;        /* hausse de moyenne, devoir fait          */
+  --edp-negative: #b42318;        /* baisse, retard, erreur                  */
+  --edp-warning: #8a4b00;         /* échéance proche                         */
+
+  /* --- Notes : trois paliers de lecture --------------------------------- */
+  --edp-grade-high: var(--edp-positive);   /* >= 15/20 */
+  --edp-grade-mid: var(--edp-text);        /* 10 à 15  */
+  --edp-grade-low: var(--edp-negative);    /* < 10     */
+
+  /* --- Formes ---------------------------------------------------------- */
+  --edp-radius-lg: 14px;
+  --edp-radius: 10px;
+  --edp-radius-sm: 6px;
+
+  /* --- Ombres (progressives : plus on monte, plus on éloigne) ---------- */
+  --edp-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --edp-shadow: 0 6px 18px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --edp-shadow-lg: 0 18px 48px rgba(15, 23, 42, 0.22);
+
+  /* --- Rythme ---------------------------------------------------------- */
+  --edp-space-1: 4px;
+  --edp-space-2: 8px;
+  --edp-space-3: 12px;
+  --edp-space-4: 16px;
+  --edp-space-5: 24px;
+  --edp-space-6: 32px;
+
+  --edp-reading-width: 72ch;      /* longueur de ligne confortable           */
+  --edp-ring: 0 0 0 3px color-mix(in srgb, var(--edp-accent) 35%, transparent);
+
+  --edp-panel-width: 388px;
+  --edp-z: 2147483000; /* au-dessus de tout ce que le site peut afficher */
+}
+
+/* ==========================================================================
+   Thème sombre
+   --------------------------------------------------------------------------
+   Pas de noir pur (#000) ni de blanc pur : un bleu-gris profond fatigue moins
+   l'œil sur une page lue longtemps, et évite le « halo » des textes clairs sur
+   fond noir. Les surfaces montent par paliers de ~4 % de luminosité, ce qui
+   suffit à séparer les plans sans dessiner de traits partout.
+   ========================================================================== */
+:root[data-edp-theme="dark"] {
+  --edp-bg: #0f131a;              /* fond général                            */
+  --edp-surface: #151b24;         /* cartes                                  */
+  --edp-surface-2: #1c232e;       /* en-têtes de tableau, lignes alternées   */
+  --edp-surface-3: #232b38;       /* survol appuyé, élément actif            */
+  --edp-text: #e8ecf3;            /* texte principal              (15,1:1)   */
+  --edp-muted: #98a3b3;           /* texte secondaire              (6,6:1)   */
+  --edp-border: #29313d;
+  --edp-line: #36404f;
+
+  --edp-accent: #6ea8fe;          /* liens, actions                (7,1:1)   */
+  --edp-accent-soft: #16253d;
+  --edp-positive: #4ade80;
+  --edp-negative: #fca5a5;
+  --edp-warning: #fbbf24;
+
+  --edp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --edp-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --edp-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.6);
+}

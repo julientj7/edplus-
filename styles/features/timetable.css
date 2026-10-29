@@ -1,0 +1,41 @@
+/* ==========================================================================
+   styles/features/timetable.css — repérage du cours en cours
+   --------------------------------------------------------------------------
+   Classes posées par content/features/timetable.js sur les lignes de l'emploi
+   du temps, et retirées au démontage. Aucune structure n'est modifiée : on
+   ajoute seulement une classe et un marqueur visuel.
+   ========================================================================== */
+
+tr.edp-now > td {
+  background-color: color-mix(in srgb, var(--edp-accent) 16%, transparent) !important;
+  font-weight: 600;
+}
+
+tr.edp-now {
+  box-shadow: inset 3px 0 0 var(--edp-accent);
+}
+
+/* Étiquette « en cours » ajoutée devant la première cellule. */
+tr.edp-now > td:first-child::before {
+  content: "en cours";
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--edp-accent);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+
+tr.edp-next {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--edp-accent) 45%, transparent);
+}
+
+tr.edp-cancelled > td {
+  opacity: 0.55;
+  text-decoration: line-through;
+}

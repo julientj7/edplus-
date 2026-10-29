@@ -1,0 +1,90 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "short_name": "ED+",
+  "version": "1.0.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "fr",
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ecole-directe-plus@example.com",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+
+  "action": {
+    "default_title": "École Directe Plus+",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+
+  "background": {
+    "scripts": [
+      "shared/constants.js",
+      "shared/utils.js",
+      "shared/settings.js",
+      "background/messages.js",
+      "background/badge.js",
+      "background/background.js"
+    ]
+  },
+
+  "permissions": ["storage"],
+
+  "host_permissions": ["*://*.ecoledirecte.com/*"],
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.ecoledirecte.com/*"],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "js": [
+        "shared/constants.js",
+        "shared/utils.js",
+        "shared/settings.js",
+        "content/core/dom.js",
+        "content/core/messaging.js",
+        "content/core/router.js",
+        "content/core/registry.js",
+        "content/data/model.js",
+        "content/data/source-dom.js",
+        "content/data/source-api.js",
+        "content/data/adapter.js",
+        "content/features/averages.js",
+        "content/features/theme.js",
+        "content/features/dark-mode.js",
+        "content/features/theme-toggle.js",
+        "content/features/grades.js",
+        "content/features/simulator.js",
+        "content/features/timetable.js",
+        "content/features/homework.js",
+        "content/ui/components.js",
+        "content/ui/panel.js",
+        "content/main.js"
+      ],
+      "css": [
+        "styles/tokens.css",
+        "styles/base.css",
+        "styles/dark.css",
+        "styles/features/grades.css",
+        "styles/features/timetable.css",
+        "styles/features/homework.css"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+/* ==========================================================================
+   styles/features/grades.css — lisibilité du tableau de notes du site
+   --------------------------------------------------------------------------
+   La classe .edp-notes-table est posée par content/features/grades.js sur les
+   seuls tableaux reconnus comme tableaux de notes. On ne touche donc JAMAIS
+   aux autres tableaux de la page (emploi du temps, factures, messagerie…).
+   ========================================================================== */
+
+.edp-notes-table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* En-tête collant : sur un long relevé de notes, on ne perd plus la colonne. */
+.edp-notes-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--edp-surface);
+  color: var(--edp-text);
+}
+
+/* Lignes alternées + survol : le regard suit la ligne jusqu'à la note. */
+.edp-notes-table tbody tr:nth-child(even) > td {
+  background-color: color-mix(in srgb, var(--edp-surface) 55%, transparent);
+}
+
+.edp-notes-table tbody tr:hover > td {
+  background-color: color-mix(in srgb, var(--edp-accent) 10%, transparent);
+}
+
+/* Les cellules de note respirent : la note elle-même est mise en avant. */
+.edp-notes-table td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* Notes faibles / notes « non significatives » repérables au premier regard. */
+.edp-notes-table tbody tr:has(td:nth-child(2)) td {
+  transition: background-color 120ms ease;
+}
+
+/* --- Lisibilité fine -----------------------------------------------------
+   Ces règles ne s'appliquent QU'AUX tableaux portant .edp-notes-table, donc
+   jamais à l'emploi du temps, à la messagerie ni aux factures.
+   ---------------------------------------------------------------------- */
+
+/* La première colonne (matière + intitulé du devoir) reste lisible sur deux
+   lignes : on ne la laisse pas s'écraser quand la note et le coefficient
+   prennent de la place. */
+.edp-notes-table td:first-child,
+.edp-notes-table th:first-child {
+  min-width: 9rem;
+  line-height: 1.35;
+  hyphens: auto;
+}
+
+/* Les chiffres s'alignent verticalement d'une ligne à l'autre : c'est ce qui
+   permet de comparer des notes d'un coup d'œil, sans lire chaque cellule. */
+.edp-notes-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Un peu d'air : 8 px verticaux au lieu de 0, sans doubler la hauteur du
+   tableau pour autant (les relevés de notes sont longs). */
+.edp-notes-table tbody td,
+.edp-notes-table tbody th {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+/* Séparateurs horizontaux discrets : on lit des lignes, pas une grille. */
+.edp-notes-table tbody tr > td {
+  border-bottom: 1px solid var(--edp-surface-2);
+}
+
+/* Repli pour les navigateurs sans color-mix (Firefox < 113) : la ligne
+   alternée devient un simple aplat de surface, au lieu de rien du tout. */
+@supports not (background-color: color-mix(in srgb, red 50%, blue)) {
+  .edp-notes-table tbody tr:nth-child(even) > td {
+    background-color: var(--edp-surface-2);
+  }
+
+  .edp-notes-table tbody tr:hover > td {
+    background-color: var(--edp-surface-3);
+  }
+}
