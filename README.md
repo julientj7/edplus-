@@ -180,6 +180,18 @@ classe) plutôt que par des positions fixes.
 Si une matière ou une note manque, ouvrez la console de la page et lancez :
 
 ```js
+edpStatus()   // version, état, route, moyenne, avertissements, modules, panneau
+```
+
+Un content script vit dans un **monde isolé** : `EDP` n'est pas visible depuis la
+console de la page, et `EDP is not defined` y est donc normal même quand tout
+fonctionne. Le content script expose pour cela `edpStatus()` en lecture seule
+(valeurs sérialisables, aucune action possible) via `wrappedJSObject`.
+
+Pour les diagnostics détaillés, il faut la console de l'extension :
+`about:debugging` → « Inspecter ».
+
+```js
 EDP.debug()                    // vue d'ensemble : route, source, réglages, avertissements
 EDP.data.sourceDom.debug()     // ce qui a été lu : tableaux, matières, en-têtes, exemple
 EDP.router.debug()             // quelle route est détectée et par quel marqueur
@@ -343,7 +355,8 @@ popup le dit et demande de recharger, au lieu d'ouvrir un second onglet.
   l'installation (`about:addons` → Permissions). Voir la section Permissions.
 - **La lecture du DOM est fragile** : une refonte du site casse les sélecteurs.
   Le mode dégradé est volontairement silencieux (pas de panneau, pas d'erreur
-  visible), et `EDP.debug()` dit précisément quoi corriger.
+  visible), et `edpStatus()` (console de la page) ou `EDP.debug()` (console de
+  l'extension) dit précisément quoi corriger.
 - **Source API non implémentée** : voir `content/data/source-api.js`, qui
   documente la voie à suivre (observateur de XHR/fetch dans le monde de la page,
   sans jamais manipuler les identifiants).

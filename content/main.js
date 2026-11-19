@@ -274,6 +274,45 @@
   EDP.start = start;
   EDP.stop = stop;
 
+  /**
+   * Diagnostic accessible depuis la console DE LA PAGE.
+   *
+   * Un content script vit dans un monde isolé : `EDP` n'existe pas pour les
+   * scripts du site, donc `EDP.debug()` tapé dans la console de la page renvoie
+   * « EDP is not defined » même quand tout fonctionne. On expose donc une seule
+   * fonction, `edpStatus()`, via `wrappedJSObject` + `exportFunction` /
+   * `cloneInto` (API propre à Firefox, absente ailleurs — d'où les gardes).
+   *
+   * Elle ne renvoie que des valeurs sérialisables et ne modifie rien : pas de
+   * notes brutes, pas de réglages, aucune action possible. Sans ce point
+   * d'entrée, diagnostiquer demanderait d'ouvrir « Inspecter » dans
+   * about:debugging, ce qui n'a rien d'évident.
+   */
+  function exposeStatusToPage() {
+    try {
+      const pageWindow = window.wrappedJSObject;
+      if (!pageWindow || typeof exportFunction !== 'function' || typeof cloneInto !== 'function') return;
+
+      const snapshot = () => ({
+        version: EDP.VERSION,
+        running,
+        route: EDP.router.current,
+        source: ctx && ctx.data ? ctx.data.source : null,
+        average: ctx && ctx.data && ctx.data.general ? ctx.data.general.average20 : null,
+        warnings:
+          ctx && ctx.data && Array.isArray(ctx.data.warnings) ? ctx.data.warnings.slice(0, 5) : [],
+        modules: EDP.registry.status(),
+        panel: Boolean(panel)
+      });
+
+      pageWindow.edpStatus = exportFunction(() => cloneInto(snapshot(), pageWindow), pageWindow);
+    } catch (error) {
+      console.debug('[ED+] diagnostic page indisponible :', error);
+    }
+  }
+
+  exposeStatusToPage();
+
   EDP.dom.ready().then(start).catch((error) => {
     console.error('[ED+] démarrage impossible :', error);
   });
