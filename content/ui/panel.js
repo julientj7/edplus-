@@ -21,6 +21,7 @@
 (() => {
   const EDP = globalThis.EDP;
   const { API } = EDP;
+  const { formatFr, formatDelta } = EDP.utils;
   const ui = () => EDP.ui;
 
   let instance = null;
@@ -36,7 +37,11 @@
   async function buildStyle(shadow) {
     let css = '';
     try {
-      const paths = ['styles/base.css', 'styles/components/panel.css'];
+      const paths = [
+        'styles/base.css',
+        'styles/components/panel.css',
+        'styles/components/simulator.css'
+      ];
       const parts = await Promise.all(
         paths.map(async (path) => {
           const response = await fetch(API.runtime.getURL(path));
@@ -62,6 +67,75 @@
     const style = document.createElement('style');
     style.textContent = css;
     shadow.appendChild(style);
+  }
+
+  /**
+   * Panneau fixe de moyenne : la seule information que l'élève veut voir sans
+   * rien ouvrir. Volontairement minuscule (une valeur, un écart, deux compteurs)
+   * et dépliable d'un clic pour le détail par matière.
+   *
+   * Il vit dans le shadow root, comme le reste du panneau : les styles du site
+   * ne peuvent ni le déformer ni le masquer.
+   */
+  function buildAverageHud() {
+    const root = document.createElement('section');
+    root.className = 'edp-hud';
+    root.hidden = true;
+    root.dataset.tone = 'neutral';
+
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'edp-hud__head';
+    head.setAttribute('aria-expanded', 'false');
+    head.title = 'Détail des moyennes par matière';
+
+    const label = document.createElement('span');
+    label.className = 'edp-hud__label';
+    label.textContent = 'Moyenne générale';
+
+    const line = document.createElement('span');
+    line.className = 'edp-hud__line';
+    const value = document.createElement('strong');
+    value.className = 'edp-hud__value';
+    value.textContent = '—';
+    const scale = document.createElement('span');
+    scale.className = 'edp-hud__scale';
+    scale.textContent = '/20';
+    const delta = document.createElement('span');
+    delta.className = 'edp-hud__delta';
+    line.appendChild(value);
+    line.appendChild(scale);
+    line.appendChild(delta);
+
+    const meta = document.createElement('span');
+    meta.className = 'edp-hud__meta';
+
+    head.appendChild(label);
+    head.appendChild(line);
+    head.appendChild(meta);
+
+    // Chevron purement décoratif : l'état réel est porté par aria-expanded.
+    const chevron = document.createElement('span');
+    chevron.className = 'edp-hud__chevron';
+    chevron.textContent = '▾';
+
+    const detail = document.createElement('div');
+    detail.className = 'edp-hud__detail';
+    detail.hidden = true;
+
+    const list = document.createElement('ul');
+    list.className = 'edp-hud__list';
+    const note = document.createElement('p');
+    note.className = 'edp-hud__note';
+
+    detail.appendChild(list);
+    detail.appendChild(note);
+
+    root.appendChild(head);
+    root.appendChild(chevron);
+    root.appendChild(detail);
+
+    return { root, head, value, delta, meta, list, note, detail };
   }
 
   /** Crée la pastille (bouton flottant) et le tiroir. */
@@ -122,11 +196,20 @@
     const quick = document.createElement('div');
     quick.className = 'edp-quick-bar';
 
-    shadow.appendChild(quick);
+    // Le panneau de moyenne et la barre de contrôles partagent une seule pile
+    // verticale (`.edp-dock`) : ils ne peuvent donc pas se chevaucher, même
+    // quand l'un des deux grandit.
+    const hud = buildAverageHud();
+    const dock = document.createElement('div');
+    dock.className = 'edp-dock';
+    dock.appendChild(hud.root);
+    dock.appendChild(quick);
+
+    shadow.appendChild(dock);
     shadow.appendChild(launcher);
     shadow.appendChild(drawer);
 
-    return { launcher, launcherValue, drawer, body, status, close, quick };
+    return { launcher, launcherValue, drawer, body, status, close, quick, hud, dock };
   }
 
   /**
@@ -162,6 +245,15 @@
     chrome.launcher.addEventListener('click', () => setOpen(chrome.drawer.hidden));
     chrome.close.addEventListener('click', () => setOpen(false));
 
+    /** Repli du détail par matière. */
+    function setHudOpen(open) {
+      chrome.hud.detail.hidden = !open;
+      chrome.hud.head.setAttribute('aria-expanded', open ? 'true' : 'false');
+      chrome.hud.root.dataset.open = open ? '1' : '0';
+    }
+
+    chrome.hud.head.addEventListener('click', () => setHudOpen(chrome.hud.detail.hidden));
+
     const panel = {
       host,
       shadow,
@@ -194,6 +286,30 @@
         section.root.remove();
         sections.delete(name);
       },
+      /**
+       * Ouvre le tiroir sur une section precise.
+       *
+       * Utilise par le popup (« Simuler une note ») : il ne peut pas construire
+       * le simulateur lui-meme, il demande donc a la page de montrer le sien.
+       * Renvoie false si la section n'est pas montee ici — l'appelant peut alors
+       * expliquer pourquoi au lieu de laisser un tiroir ouvert sur du vide.
+       */
+      reveal(name) {
+        setOpen(true);
+        const section = sections.get(name);
+        if (!section) return false;
+        try {
+          section.root.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        } catch (error) {
+          // Firefox sans options de defilement : saut direct, sans animation.
+          try {
+            section.root.scrollIntoView();
+          } catch (ignored) {
+            /* rien a faire : le tiroir est deja ouvert */
+          }
+        }
+        return true;
+      },
       /** Vide tout le tiroir (changement d'écran). */
       clearAll() {
         Array.from(sections.keys()).forEach((name) => panel.clear(name));
@@ -203,9 +319,69 @@
         chrome.status.hidden = !text;
         chrome.status.dataset.tone = tone;
       },
-      /** Affiche la moyenne générale directement sur la pastille. */
+      /** Affiche un texte sur la pastille (retour au libellé par défaut si null). */
       setLauncher(text) {
         chrome.launcherValue.textContent = text || 'ED+';
+      },
+      /**
+       * Met à jour le panneau fixe de moyenne.
+       * @param {object|null} info { average20, classAverage, subjectsUsed,
+       *   gradeCount, subjects: [{ name, average20 }], stale }
+       *   null (ou sans moyenne) masque le panneau : mieux vaut rien qu'un « — »
+       *   permanent en bas de l'écran.
+       */
+      setAverage(info) {
+        const view = chrome.hud;
+        const average = info && Number.isFinite(info.average20) ? info.average20 : null;
+        if (average === null) {
+          view.root.hidden = true;
+          return;
+        }
+
+        view.root.hidden = false;
+        view.root.dataset.tone = average >= 15 ? 'positive' : average < 10 ? 'negative' : 'neutral';
+        view.value.textContent = formatFr(average);
+
+        view.delta.textContent = '';
+        view.delta.dataset.tone = 'neutral';
+        if (Number.isFinite(info.classAverage)) {
+          const gap = average - info.classAverage;
+          view.delta.textContent = formatDelta(gap);
+          view.delta.dataset.tone = gap > 0 ? 'positive' : gap < 0 ? 'negative' : 'neutral';
+          view.delta.title = `Moyenne de la classe : ${formatFr(info.classAverage)}`;
+        }
+
+        const parts = [];
+        if (info.subjectsUsed) parts.push(`${info.subjectsUsed} matière${info.subjectsUsed > 1 ? 's' : ''}`);
+        if (info.gradeCount) parts.push(`${info.gradeCount} note${info.gradeCount > 1 ? 's' : ''}`);
+        if (info.stale) parts.push('dernier relevé');
+        view.meta.textContent = parts.join(' · ');
+
+        // Détail par matière : reconstruit à chaque mise à jour. Une quinzaine
+        // de lignes au maximum, donc le coût est négligeable.
+        view.list.textContent = '';
+        (info.subjects || []).forEach((subject) => {
+          if (!subject || !Number.isFinite(subject.average20)) return;
+          const item = document.createElement('li');
+          item.className = 'edp-hud__item';
+          if (subject.average20 >= 15) item.classList.add('edp-hud__item--high');
+          else if (subject.average20 < 10) item.classList.add('edp-hud__item--low');
+
+          const name = document.createElement('span');
+          name.className = 'edp-hud__item-name';
+          name.textContent = subject.name;
+          const number = document.createElement('span');
+          number.className = 'edp-hud__item-value';
+          number.textContent = formatFr(subject.average20);
+
+          item.appendChild(name);
+          item.appendChild(number);
+          view.list.appendChild(item);
+        });
+        view.list.hidden = view.list.children.length === 0;
+        view.note.textContent = info.stale
+          ? 'Dernier relevé connu : ouvrez la page Notes pour actualiser.'
+          : 'Calcul local, coefficients appliqués.';
       },
       /**
        * Ajoute un bouton dans la barre de contrôles rapides.

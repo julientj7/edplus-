@@ -48,6 +48,17 @@
 
   "host_permissions": ["*://*.ecoledirecte.com/*"],
 
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "styles/base.css",
+        "styles/components/panel.css",
+        "styles/components/simulator.css"
+      ],
+      "matches": ["*://*.ecoledirecte.com/*"]
+    }
+  ],
+
   "content_scripts": [
     {
       "matches": ["*://*.ecoledirecte.com/*"],

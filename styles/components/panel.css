@@ -141,13 +141,14 @@
 }
 
 /* ==========================================================================
-   Contrôles rapides — boutons ronds au-dessus de la pastille
+   Pile du coin inférieur droit — panneau de moyenne + contrôles rapides
    --------------------------------------------------------------------------
-   Empilés verticalement, alignés à droite, juste au-dessus de la pastille.
-   Aucune couleur en dur : ils suivent le thème par héritage des variables.
+   Une seule colonne fixe, ancrée juste au-dessus de la pastille. Les deux
+   éléments s'empilent au lieu d'être positionnés séparément : quel que soit le
+   nombre de contrôles, rien ne se chevauche.
    ========================================================================== */
 
-.edp-quick-bar {
+.edp-dock {
   position: fixed;
   right: 18px;
   bottom: 62px;
@@ -155,13 +156,205 @@
   flex-direction: column;
   align-items: flex-end;
   gap: var(--edp-space-2);
+  max-width: calc(100vw - 36px);
 }
 
-/* Le tiroir ouvert occupe le coin : on masque la barre plutôt que de la
+/* Le tiroir ouvert occupe le coin : on masque la pile plutôt que de la
    superposer aux cartes (le thème reste accessible depuis le popup). */
-:host([data-edp-open="1"]) .edp-quick-bar,
-#edp-panel-host[data-edp-open="1"] .edp-quick-bar {
+:host([data-edp-open="1"]) .edp-dock,
+#edp-panel-host[data-edp-open="1"] .edp-dock {
   display: none;
+}
+
+.edp-quick-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--edp-space-2);
+}
+
+/* ==========================================================================
+   Panneau fixe de moyenne
+   --------------------------------------------------------------------------
+   Toujours visible, mais petit : une valeur, un écart à la classe, deux
+   compteurs. Le détail par matière s'ouvre au clic, vers le haut, pour ne pas
+   recouvrir la pastille.
+   ========================================================================== */
+
+.edp-hud {
+  position: relative;
+  min-width: 172px;
+  max-width: 236px;
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius);
+  background: var(--edp-surface);
+  color: var(--edp-text);
+  box-shadow: var(--edp-shadow);
+  font: 400 12px/1.3 var(--edp-font);
+  font-variant-numeric: tabular-nums;
+}
+
+.edp-hud[hidden] {
+  display: none;
+}
+
+.edp-hud__head {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  padding: 7px 26px 7px 10px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.edp-hud__head:hover .edp-hud__value {
+  color: var(--edp-accent);
+}
+
+.edp-hud__head:focus-visible {
+  outline: 2px solid var(--edp-accent);
+  outline-offset: 2px;
+}
+
+.edp-hud__label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--edp-muted);
+}
+
+.edp-hud__line {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.edp-hud__value {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.1;
+  transition: color 120ms ease;
+}
+
+.edp-hud[data-tone="positive"] .edp-hud__value {
+  color: var(--edp-positive);
+}
+
+.edp-hud[data-tone="negative"] .edp-hud__value {
+  color: var(--edp-negative);
+}
+
+.edp-hud__scale {
+  font-size: 10.5px;
+  color: var(--edp-muted);
+}
+
+.edp-hud__delta {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.edp-hud__delta[data-tone="positive"] {
+  color: var(--edp-positive);
+}
+
+.edp-hud__delta[data-tone="negative"] {
+  color: var(--edp-negative);
+}
+
+.edp-hud__meta {
+  font-size: 10px;
+  color: var(--edp-muted);
+}
+
+.edp-hud__chevron {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  font-size: 9px;
+  color: var(--edp-muted);
+  transition: transform 120ms ease;
+  pointer-events: none;
+}
+
+.edp-hud[data-open="1"] .edp-hud__chevron {
+  transform: rotate(180deg);
+}
+
+.edp-hud__detail {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  width: 248px;
+  max-height: 262px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--edp-space-2) 10px;
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius);
+  background: var(--edp-bg);
+  box-shadow: var(--edp-shadow-lg);
+}
+
+.edp-hud__detail[hidden] {
+  display: none;
+}
+
+.edp-hud__list {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edp-hud__list[hidden] {
+  display: none;
+}
+
+.edp-hud__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--edp-space-2);
+  padding: 2px 0;
+  border-bottom: 1px solid var(--edp-surface-2);
+  font-size: 11.5px;
+}
+
+.edp-hud__item:last-child {
+  border-bottom: none;
+}
+
+.edp-hud__item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edp-hud__item-value {
+  font-weight: 600;
+}
+
+.edp-hud__item--high .edp-hud__item-value {
+  color: var(--edp-positive);
+}
+
+.edp-hud__item--low .edp-hud__item-value {
+  color: var(--edp-negative);
+}
+
+.edp-hud__note {
+  margin: 6px 0 0;
+  font-size: 9.5px;
+  color: var(--edp-muted);
 }
 
 .edp-quick {

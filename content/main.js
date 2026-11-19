@@ -22,7 +22,6 @@
 (() => {
   const EDP = globalThis.EDP;
   const { API, MESSAGES, STORAGE_KEYS, ROUTES } = EDP;
-  const { formatFr } = EDP.utils;
 
   let ctx = null;
   let panel = null;
@@ -65,7 +64,59 @@
     return fresh.length ? fresh.length : 0;
   }
 
-  /** Écrit le snapshot lisible par le popup et met à jour la pastille. */
+  /**
+   * Résumé destiné au panneau fixe de moyenne.
+   *
+   * Sur un écran sans note (emploi du temps, messagerie…), la collecte est vide
+   * et il n'y a rien à calculer : on relit alors le dernier relevé enregistré et
+   * on le marque `stale`, pour que l'affichage ne fasse jamais passer une valeur
+   * ancienne pour une valeur à jour.
+   */
+  let lastSavedSignature = '';
+
+  async function averageSummary(snapshot) {
+    const general = snapshot.general || {};
+    const average = Number.isFinite(general.average20) ? general.average20 : null;
+
+    if (average !== null) {
+      const summary = {
+        average20: average,
+        classAverage: Number.isFinite(snapshot.classGeneral) ? snapshot.classGeneral : null,
+        subjectsUsed: general.subjectsUsed || 0,
+        gradeCount: (snapshot.counts && snapshot.counts.counted) || 0,
+        period: snapshot.period || null,
+        subjects: (snapshot.subjects || []).slice(0, 16),
+        stale: false,
+        at: Date.now()
+      };
+
+      // Le recalcul est déclenché à chaque mutation du DOM (toutes les 700 ms
+      // au plus) : on n'écrit que si le contenu a réellement changé, sinon on
+      // réveillerait le stockage pour rien.
+      const signature = JSON.stringify([
+        summary.average20,
+        summary.classAverage,
+        summary.gradeCount,
+        summary.subjects
+      ]);
+      if (signature !== lastSavedSignature) {
+        lastSavedSignature = signature;
+        await EDP.settings.writeKey(STORAGE_KEYS.lastAverage, summary);
+      }
+      return summary;
+    }
+
+    // Des notes sont présentes mais aucune n'entre dans la moyenne (toutes
+    // exclues par les réglages) : on n'affiche rien, un ancien relevé serait
+    // trompeur.
+    if (!snapshot.empty) return null;
+
+    const last = await EDP.settings.readKey(STORAGE_KEYS.lastAverage, null);
+    if (!last || !Number.isFinite(last.average20)) return null;
+    return { ...last, stale: true };
+  }
+
+  /** Écrit le snapshot lisible par le popup et met à jour le panneau de moyenne. */
   async function publish() {
     if (!ctx) return null;
     const snapshot = EDP.data.toSnapshot();
@@ -80,8 +131,8 @@
     if (newGrades !== null) EDP.messaging.notify(MESSAGES.NEW_GRADES, { count: newGrades });
 
     if (panel) {
-      const average = safe.general ? safe.general.average20 : null;
-      panel.setLauncher(average === null ? 'ED+' : formatFr(average));
+      const hud = ctx.settings.modules.averageHud === false ? null : await averageSummary(safe);
+      panel.setAverage(hud);
       if (safe.empty) panel.setStatus('Aucune note lisible sur cet écran.', 'muted');
       else if (safe.warnings && safe.warnings.length) panel.setStatus(safe.warnings[0], 'warning');
       else panel.setStatus('');
@@ -181,12 +232,43 @@
 
   // Le content script répond au background, qui lui demande le snapshot à
   // l'ouverture du popup (voir background/background.js).
-  EDP.messages.register(API, {
+  //
+  // Ce bloc est le SEUL point de démarrage qui dépend du routeur : il est donc
+  // isolé dans un try/catch. Une erreur ici (routeur absent, API partielle) ne
+  // doit jamais empêcher les moyennes, le thème et le panneau de fonctionner —
+  // c'est exactement ce qui arrivait quand `EDP.messages` manquait : le script
+  // mourait avant d'arriver à `EDP.dom.ready().then(start)`.
+  try {
+    EDP.messaging.register(API, {
     [MESSAGES.RESCAN]: async () => {
       if (!running) return null;
       return refresh('popup');
+    },
+
+    /**
+     * Le popup demande l'ouverture du simulateur sur CETTE page.
+     *
+     * On répond `simulator: false` quand aucune note n'est lisible ici (emploi
+     * du temps, messagerie…) : le popup explique alors quoi faire au lieu de se
+     * fermer sans rien montrer. C'est la différence entre « ça n'a pas marché »
+     * et « voici pourquoi ».
+     */
+    [MESSAGES.OPEN_SIMULATOR]: async () => {
+      if (!running || !panel) return { opened: false, simulator: false };
+      const mounted = EDP.registry
+        .status()
+        .some((feature) => feature.id === 'simulator' && feature.mounted);
+      panel.reveal('simulator');
+      return { opened: true, simulator: mounted };
     }
   });
+  } catch (error) {
+    console.error(
+      '[ED+] routeur de messages indisponible : le popup ne pourra pas piloter cette page, ' +
+        'mais le calcul des moyennes continue.',
+      error
+    );
+  }
 
   EDP.debug = debug;
   EDP.start = start;

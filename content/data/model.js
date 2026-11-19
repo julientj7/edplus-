@@ -78,6 +78,25 @@
   }
 
   /**
+   * Coefficient d'une matière : la surcharge de l'utilisateur si elle existe,
+   * sinon la somme des coefficients de ses devoirs comptés, sinon 1.
+   *
+   * Extrait ici parce que le simulateur doit recalculer ce coefficient quand il
+   * ajoute une note fictive : sans ça, la note simulée changerait la moyenne de
+   * la matière sans changer son poids dans la moyenne générale — le résultat
+   * affiché ne correspondrait pas à ce qui se passera quand la note arrivera.
+   */
+  function subjectCoefficient(subject, settings) {
+    const overrides = (settings && settings.coefficientOverrides) || {};
+    const explicit = Number(overrides[subject.name]);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    const sum = (subject.grades || [])
+      .filter((grade) => grade.counted && grade.value20 !== null)
+      .reduce((total, grade) => total + grade.coefficient, 0);
+    return sum > 0 ? round2(sum) : 1;
+  }
+
+  /**
    * Décide si une note entre dans le calcul, en fonction des réglages.
    * Séparé de createGrade() exprès : les règles changent souvent (interrupteur
    * « notes non significatives »), le modèle de données beaucoup moins.
@@ -145,17 +164,9 @@
     const excluded = new Set(
       (settings.excludedSubjects || []).map((name) => subjectKey(name)).filter(Boolean)
     );
-    const overrides = settings.coefficientOverrides || {};
 
     const subjects = Array.from(bySubject.values()).map((subject) => {
-      const explicit = Number(overrides[subject.name]);
-      if (Number.isFinite(explicit) && explicit > 0) subject.coefficient = explicit;
-      else {
-        const sum = subject.grades
-          .filter((grade) => grade.counted && grade.value20 !== null)
-          .reduce((total, grade) => total + grade.coefficient, 0);
-        subject.coefficient = sum > 0 ? round2(sum) : 1;
-      }
+      subject.coefficient = subjectCoefficient(subject, settings);
       subject.excluded = excluded.has(subject.key);
       subject.average20 = null; // rempli par features/averages.js
       return subject;
@@ -179,5 +190,5 @@
     });
   }
 
-  EDP.model = { createGrade, isCounted, buildBundle, sortByDateDesc, subjectKey };
+  EDP.model = { createGrade, isCounted, buildBundle, sortByDateDesc, subjectKey, subjectCoefficient };
 })();

@@ -142,6 +142,37 @@ check('simulation : moyenne générale recalculée', simulation.simulated.genera
 check('simulation : écart positif avec 20/20', simulation.delta > 0);
 check('simulation : la moyenne réelle est intacte', averages.computeBundle(bundle, settings).general.average20 === computed.general.average20);
 
+// --- 5 bis. Simulateur multi-notes ----------------------------------------
+// Le simulateur empile plusieurs hypothèses. Le point vérifié ici est le
+// coefficient de matière : il doit être RECALCULÉ quand une note fictive est
+// ajoutée, sinon la note changerait la moyenne de la matière sans changer son
+// poids dans la générale — et le chiffre affiché serait faux.
+const multi = averages.simulateAll(
+  bundle,
+  [
+    { subjectKey: math.key, value: 20, outOf: 20, coefficient: 1 },
+    { subjectKey: math.key, value: 10, outOf: 10, coefficient: 2 }
+  ],
+  settings
+);
+// (12×2 + 16×1 + 20×1 + 20×2) / 6 = 16,67
+close('simulateur : deux hypothèses cumulées dans la même matière', multi.subjects[0].simulatedAverage20, 16.67);
+check('simulateur : coefficient de matière recalculé (3 -> 6)', multi.subjects[0].coefficient === 6, `obtenu ${multi.subjects[0].coefficient}`);
+check('simulateur : deux hypothèses prises en compte', multi.count === 2);
+check('simulateur : écart de matière positif avec 20/20', multi.subjects[0].delta > 0);
+check('simulateur : moyenne générale simulée différente de l’actuelle', multi.simulated.general.average20 !== multi.base.general.average20);
+check(
+  'simulateur : les notes réelles ne sont pas modifiées',
+  averages.computeBundle(bundle, settings).subjects.find((subject) => subject.key === math.key).average20 === 13.33
+);
+
+const removed = averages.simulateAll(bundle, [], settings);
+check('simulateur vidé -> aucune hypothèse, aucun écart', removed.count === 0 && removed.delta === null);
+check('simulateur vidé -> moyenne générale inchangée', removed.simulated.general.average20 === computed.general.average20);
+
+const unknownSubject = averages.simulateAll(bundle, [{ subjectKey: 'matiere-absente', value: 12 }], settings);
+check('simulateur : matière inconnue ignorée', unknownSubject.count === 0 && unknownSubject.delta === null);
+
 // --- 6. Question inverse --------------------------------------------------
 close('note nécessaire : 10 de moyenne, poids 4, cible 12, poids 1', averages.neededGrade({
   currentAverage: 10,

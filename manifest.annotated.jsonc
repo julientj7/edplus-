@@ -150,6 +150,28 @@
   "host_permissions": ["*://*.ecoledirecte.com/*"],
 
   /* ------------------------------------------------------------------------
+     RESSOURCES ACCESSIBLES DEPUIS LA PAGE
+     ------------------------------------------------------------------------ */
+  /* Le tiroir du panneau vit dans un shadow root : ses feuilles de style y sont
+     injectées par panel.js, qui les lit avec fetch(runtime.getURL(...)). Un
+     content script ne peut pas lire un fichier de l'extension "en tant que
+     page" sans cette déclaration : sans elle, la requête est bloquée et le
+     panneau reste sans mise en page (il fonctionne, mais nu).
+
+     Le périmètre reste le site déclaré ci-dessus : aucune autre origine ne peut
+     demander ces fichiers. Aucun script n'est exposé, uniquement du CSS. */
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "styles/base.css",
+        "styles/components/panel.css",
+        "styles/components/simulator.css"
+      ],
+      "matches": ["*://*.ecoledirecte.com/*"]
+    }
+  ],
+
+  /* ------------------------------------------------------------------------
      CONTENT SCRIPTS
      ------------------------------------------------------------------------ */
   /* Injectés sur les pages École Directe, et nulle part ailleurs. */
@@ -187,6 +209,12 @@
         "shared/settings.js",
         "content/core/dom.js",
         "content/core/messaging.js",
+        /* Le routeur onMessage du content script vit dans messaging.js, juste
+           au-dessus : aucun fichier du dossier background/ n'est chargé ici.
+           C'est volontaire — un temps, background/messages.js était listé à
+           cet endroit pour être réutilisé côté page ; un oubli dans cette
+           liste faisait tomber tout le content script (EDP.messages indéfini,
+           plus aucune moyenne). Chaque contexte a désormais son routeur. */
         "content/core/router.js",
         "content/core/registry.js",
         "content/data/model.js",

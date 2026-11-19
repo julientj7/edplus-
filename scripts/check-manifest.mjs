@@ -12,7 +12,7 @@
  * on retire les commentaires du .jsonc, on compare les deux structures, et on
  * échoue à la moindre différence de clé ou de valeur.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -155,3 +155,65 @@ if (differences.length) {
 
 console.log(`ok   manifest.annotated.jsonc décrit exactement manifest.json (${Object.keys(manifest).length} clés racine)`);
 console.log(`ok   id=${manifest.browser_specific_settings.gecko.id} · min=${manifest.browser_specific_settings.gecko.strict_min_version} · permissions=${JSON.stringify(manifest.permissions)}`);
+
+// --- 3. Intégrité des scripts déclarés ------------------------------------
+//
+// Trois classes de bugs vécues sur ce projet, désormais impossibles à livrer :
+//   a) un chemin déclaré qui n'existe pas : Firefox refuse alors TOUT le
+//      content script, et la page ne montre rien (souvent sans autre message
+//      qu'une erreur d'installation) ;
+//   b) du ESM (`export`/`import`) dans un fichier chargé comme script classique :
+//      erreur « export declarations may only appear at top level of a module »
+//      et fichier entièrement ignoré ;
+//   c) un fichier du background listé côté page : un oubli suffit à faire
+//      tomber le content script (l'erreur `EDP.messages is undefined` vue en
+//      vrai sur ecoledirecte.com).
+const backgroundScripts = manifest.background.scripts;
+const contentScripts = manifest.content_scripts.flatMap((entry) => entry.js);
+const declared = [...new Set([...backgroundScripts, ...contentScripts])];
+const missing = declared.filter((path) => !existsSync(resolve(root, path)));
+
+if (missing.length) {
+  console.error('Ces scripts sont déclarés mais absents du disque :');
+  missing.forEach((path) => console.error('  ' + path));
+  process.exit(1);
+}
+console.log(`ok   les ${declared.length} scripts déclarés existent`);
+
+const esm = declared.filter((path) => /^\s*(export|import)\s+[\w{*'"]/m.test(readFileSync(resolve(root, path), 'utf8')));
+if (esm.length) {
+  console.error('Ces scripts utilisent la syntaxe ESM alors qu’ils sont chargés en scripts classiques :');
+  esm.forEach((path) => console.error('  ' + path));
+  process.exit(1);
+}
+console.log('ok   aucun script déclaré n’utilise export/import (scripts classiques)');
+
+const fromBackground = contentScripts.filter((path) => path.startsWith('background/'));
+if (fromBackground.length) {
+  console.error('Le content script ne doit charger aucun fichier du background :', fromBackground.join(', '));
+  process.exit(1);
+}
+
+const mainSource = readFileSync(resolve(root, 'content/main.js'), 'utf8');
+const messagingSource = readFileSync(resolve(root, 'content/core/messaging.js'), 'utf8');
+
+if (!contentScripts.includes('content/core/messaging.js') || !/function register\(/.test(messagingSource)) {
+  console.error('content/core/messaging.js doit fournir le routeur `register` du content script.');
+  process.exit(1);
+}
+// On retire les commentaires avant de chercher : main.js EXPLIQUE dans un
+// commentaire pourquoi il n'utilise plus EDP.messages, et cette phrase ne doit
+// pas déclencher le contrôle (faux positif déjà rencontré).
+const mainCode = mainSource
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/^\s*\/\/.*$/gm, '');
+
+if (/EDP\.messages\s*\./.test(mainCode)) {
+  console.error('content/main.js ne doit pas dépendre de EDP.messages (routeur du background) ; utiliser EDP.messaging.register.');
+  process.exit(1);
+}
+if (contentScripts[contentScripts.length - 1] !== 'content/main.js') {
+  console.error('content/main.js doit rester le dernier content script chargé.');
+  process.exit(1);
+}
+console.log('ok   routeur côté page autonome, main.js chargé en dernier');

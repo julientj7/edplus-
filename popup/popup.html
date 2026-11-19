@@ -5,59 +5,181 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>École Directe Plus+</title>
     <!--
-      Le popup réutilise les mêmes jetons de design et les mêmes primitives que
-      le panneau : une seule source de vérité pour les couleurs, et un thème
-      identique partout. styles/tokens.css agit ici sur le <html> du popup, dont
-      data-edp-theme est posé par popup/popup.js.
+      Le popup ne réinvente pas les couleurs : tokens.css fournit les variables
+      (clair ET sombre), base.css les primitives (.edp-button, .edp-card…), et
+      popup.css uniquement la mise en page propre au popup. data-edp-theme sur
+      <html> est posé par content/features/theme.js, chargé plus bas : le popup
+      bascule donc en sombre avec exactement le même code que la page.
     -->
     <link rel="stylesheet" href="../styles/tokens.css" />
     <link rel="stylesheet" href="../styles/base.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body class="edp-popup">
+    <!-- ==================================================================
+         EN-TÊTE : logo, nom, et bascule du mode sombre
+         ================================================================== -->
     <header class="edp-popup__header">
-      <div>
+      <!-- alt vide : le titre juste à côté porte déjà le nom. Un lecteur
+           d'écran annoncerait sinon « École Directe Plus+ École Directe Plus+ ». -->
+      <img
+        class="edp-popup__logo"
+        src="../icons/icon-48.png"
+        alt=""
+        width="40"
+        height="40"
+      />
+
+      <div class="edp-popup__identity">
         <h1 class="edp-popup__title">École Directe Plus+</h1>
-        <p class="edp-popup__version" id="version">v—</p>
+        <p class="edp-popup__version" id="version">v— · non officiel</p>
       </div>
-      <label class="edp-switch" title="Désactive tout sans désinstaller l’extension">
-        <input type="checkbox" id="enabled" />
-        <span>Activée</span>
-      </label>
+
+      <!--
+        Bouton de thème : il MONTRE L'ÉTAT (lune = sombre actif, soleil =
+        clair actif), comme le bouton flottant de la page. Son title et son
+        aria-label, eux, annoncent l'ACTION du clic. aria-pressed porte l'état,
+        et c'est le CSS qui choisit l'icône en conséquence : le JS ne touche
+        jamais aux SVG (l'attribut `hidden` n'existe pas sur un élément SVG).
+      -->
+      <button
+        type="button"
+        class="edp-theme-toggle"
+        id="theme-toggle"
+        aria-pressed="false"
+        title="Passer en mode sombre"
+      >
+        <span class="edp-theme-toggle__icon" aria-hidden="true">
+          <svg
+            id="icon-moon"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+          </svg>
+          <svg
+            id="icon-sun"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <line x1="12" y1="2" x2="12" y2="4.6" />
+            <line x1="12" y1="19.4" x2="12" y2="22" />
+            <line x1="2" y1="12" x2="4.6" y2="12" />
+            <line x1="19.4" y1="12" x2="22" y2="12" />
+            <line x1="4.9" y1="4.9" x2="6.8" y2="6.8" />
+            <line x1="17.2" y1="17.2" x2="19.1" y2="19.1" />
+            <line x1="4.9" y1="19.1" x2="6.8" y2="17.2" />
+            <line x1="17.2" y1="6.8" x2="19.1" y2="4.9" />
+          </svg>
+        </span>
+        <span class="edp-theme-toggle__text" id="theme-toggle-text">Clair</span>
+      </button>
     </header>
 
     <main class="edp-popup__main">
-      <!-- Résumé : moyenne, dernière note, période -->
-      <section class="edp-card" id="summary">
+      <!-- ================================================================
+           MOYENNE GÉNÉRALE — le chiffre que l'on vient chercher
+           ================================================================ -->
+      <section class="edp-hero" id="summary" aria-labelledby="average-label">
+        <div class="edp-hero__head">
+          <span class="edp-hero__label" id="average-label">Moyenne générale</span>
+          <span class="edp-hero__period" id="period"></span>
+        </div>
+
+        <p class="edp-hero__value" id="average" data-tone="empty">—</p>
+        <p class="edp-hero__meta" id="average-meta">Aucune donnée pour l’instant.</p>
+
+        <!-- Écart à la classe, nouvelles notes : des pastilles, pas du texte
+             noyé dans une phrase. -->
+        <div class="edp-hero__badges" id="average-badges"></div>
+
+        <p class="edp-hero__line" id="day" hidden></p>
+        <p class="edp-hero__line" id="last-grade" hidden></p>
+
+        <!-- Affiché seulement quand aucune moyenne n'est disponible : c'est
+             l'action utile à ce moment-là. -->
+        <button type="button" class="edp-button edp-button--primary edp-popup__cta" id="open-site" hidden>
+          Ouvrir École Directe
+        </button>
+      </section>
+
+      <!-- ================================================================
+           ACTIONS RAPIDES
+           ================================================================ -->
+      <section class="edp-actions" aria-label="Actions rapides">
+        <!-- Ouvre le tiroir de la page et son simulateur. Le popup ne calcule
+             pas : il n'a pas accès au DOM de la page (voir popup.js). -->
+        <button type="button" class="edp-action edp-action--primary" id="open-simulator">
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 19V5" />
+            <path d="M4 19h16" />
+            <path d="M8 15l3-4 3 3 4-6" />
+          </svg>
+          <span>Simuler une note</span>
+        </button>
+
+        <button type="button" class="edp-action" id="open-settings">
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+          </svg>
+          <span>Paramètres</span>
+        </button>
+      </section>
+
+      <!-- Message éphémère (page non prête, extension désactivée…). -->
+      <p class="edp-popup__toast" id="toast" role="status" hidden></p>
+
+      <!-- ================================================================
+           PARAMÈTRES — la cible du bouton « Paramètres »
+           ================================================================ -->
+      <section class="edp-card" id="settings" aria-labelledby="settings-title">
         <div class="edp-card__header">
           <div class="edp-card__titles">
-            <h3 class="edp-card__title">Ma moyenne</h3>
-            <p class="edp-card__hint" id="summary-source">calcul local, depuis la page affichée</p>
+            <h2 class="edp-card__title" id="settings-title">Paramètres</h2>
+            <p class="edp-card__hint">Tout reste sur cet appareil.</p>
           </div>
         </div>
-        <div class="edp-card__body" id="summary-body">
-          <p class="edp-muted" id="summary-empty">
-            Ouvrez École Directe dans un onglet pour voir vos moyennes calculées.
-          </p>
-          <div class="edp-row" id="summary-stats"></div>
-          <p class="edp-muted" id="summary-last"></p>
-          <button type="button" class="edp-button edp-button--primary" id="open-site">
-            Ouvrir École Directe
-          </button>
-        </div>
-      </section>
 
-      <!-- Emploi du temps et devoirs : renseignés par les fonctionnalités -->
-      <section class="edp-card" id="sections" hidden>
-        <div class="edp-card__body" id="sections-body"></div>
-      </section>
-
-      <!-- Réglages rapides (le reste se règle dans le panneau, sur la page) -->
-      <section class="edp-card">
-        <div class="edp-card__header">
-          <h3 class="edp-card__title">Réglages</h3>
-        </div>
         <div class="edp-card__body">
+          <label class="edp-switch" title="Désactive tout sans désinstaller l’extension">
+            <input type="checkbox" id="enabled" />
+            <span>Extension activée</span>
+          </label>
+
           <label class="edp-field">
             <span class="edp-field__label">Thème</span>
             <select class="edp-input" id="theme">
@@ -69,36 +191,48 @@
 
           <fieldset class="edp-fieldset">
             <legend class="edp-field__label">Modules</legend>
-            <label class="edp-switch"><input type="checkbox" id="module-grades" /><span>Moyennes calculées</span></label>
-            <label class="edp-switch"><input type="checkbox" id="module-simulator" /><span>Simulateur de notes</span></label>
-            <label class="edp-switch"><input type="checkbox" id="module-timetable" /><span>Emploi du temps</span></label>
-            <label class="edp-switch"><input type="checkbox" id="module-homework" /><span>Cahier de textes</span></label>
+            <label class="edp-switch">
+              <input type="checkbox" id="module-grades" /><span>Moyennes calculées</span>
+            </label>
+            <label class="edp-switch">
+              <input type="checkbox" id="module-simulator" /><span>Simulateur de notes</span>
+            </label>
+            <label class="edp-switch">
+              <input type="checkbox" id="module-timetable" /><span>Emploi du temps</span>
+            </label>
+            <label class="edp-switch">
+              <input type="checkbox" id="module-homework" /><span>Cahier de textes</span>
+            </label>
             <label class="edp-switch">
               <input type="checkbox" id="module-theme-toggle" /><span>Bouton mode sombre</span>
+            </label>
+            <label class="edp-switch">
+              <input type="checkbox" id="module-average-hud" /><span>Moyenne toujours visible</span>
             </label>
             <label class="edp-switch">
               <input type="checkbox" id="badge" /><span>Pastille « nouvelle note »</span>
             </label>
           </fieldset>
 
-          <div class="edp-row">
-            <button type="button" class="edp-button edp-button--ghost" id="reset">
-              Réinitialiser les réglages
-            </button>
-          </div>
+          <button type="button" class="edp-button edp-button--ghost" id="reset">
+            Réinitialiser les réglages
+          </button>
         </div>
       </section>
 
       <p class="edp-popup__privacy">
-        Aucun identifiant, aucune donnée scolaire ne quitte ce navigateur. Cet
-        outil n’est pas affilié à Aplim / École Directe.
+        Aucun identifiant, aucune donnée scolaire ne quitte ce navigateur. Cet outil
+        n’est pas affilié à Aplim / École Directe.
       </p>
     </main>
 
-    <!-- Ordre imposé : constantes, utilitaires, réglages, puis la logique. -->
+    <!-- Ordre imposé : constantes, utilitaires, réglages, thème, puis le popup.
+         theme.js est le MÊME module que celui de la page : la bascule et la
+         résolution de « auto » ne sont donc écrites qu'une seule fois. -->
     <script src="../shared/constants.js"></script>
     <script src="../shared/utils.js"></script>
     <script src="../shared/settings.js"></script>
+    <script src="../content/features/theme.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

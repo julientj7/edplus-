@@ -2,12 +2,14 @@
 /**
  * popup/popup.js
  * -------------
- * Le popup fait deux choses, et rien d'autre :
- *   1. afficher le dernier « snapshot » calculé (moyenne, dernière note, cours
- *      suivant, devoirs) — il ne recalcule rien lui-même, il demande au
- *      background, qui relit le cache écrit par le content script ;
- *   2. modifier les réglages partagés. Aucun envoi vers le site, aucune donnée
- *      transmise.
+ * Le popup fait quatre choses, et rien d'autre :
+ *   1. afficher le dernier « snapshot » calculé (moyenne, cours, devoirs) —
+ *      il ne recalcule rien lui-même : il demande au background, qui relit le
+ *      cache écrit par le content script ;
+ *   2. basculer le mode sombre, avec exactement le même module de thème que la
+ *      page (content/features/theme.js) ;
+ *   3. ouvrir le simulateur dans le tiroir de la page ;
+ *   4. modifier les réglages partagés.
  *
  * Pourquoi ne pas calculer dans le popup : il n'a pas accès au DOM de la page,
  * il ne pourrait lire ni les notes, ni l'emploi du temps. Le laisser recalculer
@@ -18,22 +20,34 @@
   const EDP = globalThis.EDP;
   const { API, MESSAGES } = EDP;
   const { formatFr, formatDelta } = EDP.utils;
-  const ui = EDP.ui || null;
 
   const nodes = {};
+  let toastTimer = null;
 
   /** Envoie un message au background et renvoie la donnée utile (ou null). */
-  async function request(type, payload = null) {
+  async function request(type) {
     try {
-      const response = await API.runtime.sendMessage({ type, ...(payload || {}) });
+      const response = await API.runtime.sendMessage({ type });
       return response && response.ok ? response.data : null;
     } catch (error) {
+      // Cas normal : event page endormie, extension rechargée.
       console.debug('[ED+] popup : message sans réponse', type, error);
       return null;
     }
   }
 
-  /** Petit créateur de nœuds, pour ne jamais utiliser innerHTML. */
+  /** Onglet actif, sans demander la permission « tabs » (on n'a besoin que de l'id). */
+  async function activeTab() {
+    try {
+      const tabs = await API.tabs.query({ active: true, currentWindow: true });
+      return tabs && tabs.length ? tabs[0] : null;
+    } catch (error) {
+      console.debug('[ED+] popup : onglet actif illisible', error);
+      return null;
+    }
+  }
+
+  /** Petit créateur de nœuds : jamais d'innerHTML, même si le contenu est sûr. */
   function el(tag, props = {}, children = []) {
     const node = document.createElement(tag);
     Object.entries(props).forEach(([key, value]) => {
@@ -51,19 +65,68 @@
     return node;
   }
 
-  function stat({ label, value, hint = null, tone = 'neutral' }) {
-    return el('div', { class: `edp-stat edp-tone-${tone}` }, [
-      el('span', { class: 'edp-stat__label', text: label }),
-      el('strong', { class: 'edp-stat__value', text: value }),
-      hint ? el('span', { class: 'edp-stat__hint', text: hint }) : null
-    ]);
+  function badge(text, tone = 'neutral') {
+    return el('span', { class: `edp-badge edp-tone-${tone}`, text });
   }
 
-  function toneForDelta(value) {
-    if (!Number.isFinite(value)) return 'neutral';
-    if (value > 0) return 'positive';
-    if (value < 0) return 'negative';
-    return 'neutral';
+  /** Message temporaire, sous les actions rapides. */
+  function toast(message) {
+    nodes.toast.textContent = message;
+    nodes.toast.hidden = !message;
+    clearTimeout(toastTimer);
+    if (!message) return;
+    toastTimer = setTimeout(() => {
+      nodes.toast.hidden = true;
+    }, 4000);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Thème
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Aligne l'apparence du bouton sur le thème EFFECTIF.
+   *
+   * Le bouton montre l'état (lune = sombre, soleil = clair) et son aria-label
+   * annonce l'action. C'est la seule façon de rester compréhensible en mode
+   * « auto », où l'utilisateur n'a pas explicitement choisi.
+   *
+   * L'ICÔNE est choisie par le CSS à partir de `aria-pressed` : on ne manipule
+   * pas les SVG ici (l'attribut `hidden` n'existe pas sur un élément SVG, et un
+   * `.hidden` posé par JS ne serait qu'une propriété fantôme).
+   */
+  function paintTheme() {
+    const dark = EDP.theme.current.resolved === 'dark';
+    const action = dark ? 'Passer en mode clair' : 'Passer en mode sombre';
+
+    nodes.themeToggle.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    nodes.themeToggle.title = action;
+    nodes.themeToggle.setAttribute('aria-label', action);
+    nodes.themeToggleText.textContent = dark ? 'Sombre' : 'Clair';
+
+    // Le sélecteur des réglages reflète la préférence (auto / clair / sombre),
+    // qui n'est pas la même chose que la valeur effective ci-dessus.
+    if (nodes.theme) nodes.theme.value = EDP.theme.current.preference;
+  }
+
+  function wireTheme() {
+    nodes.themeToggle.addEventListener('click', () => {
+      // theme.toggle() applique immédiatement (pas d'attente du stockage), puis
+      // enregistre. Les onglets ouverts suivent via storage.onChanged.
+      EDP.theme.toggle().catch((error) => {
+        console.warn('[ED+] bascule de thème en échec :', error);
+      });
+    });
+
+    // Le sélecteur « Suivre le système » reste le seul moyen de revenir en
+    // auto : le bouton, à deux états, force toujours clair ou sombre.
+    nodes.theme.addEventListener('change', () => {
+      EDP.theme.set(nodes.theme.value).catch((error) => {
+        console.warn('[ED+] thème non enregistré :', error);
+      });
+    });
+
+    EDP.theme.onChange(paintTheme);
   }
 
   // ---------------------------------------------------------------------------
@@ -71,113 +134,143 @@
   // ---------------------------------------------------------------------------
 
   function renderSummary(snapshot) {
-    const stats = nodes.summaryStats;
-    const last = nodes.summaryLast;
-    stats.textContent = '';
-    last.textContent = '';
+    nodes.period.textContent = (snapshot && snapshot.period) || '';
+    nodes.badges.textContent = '';
+    nodes.last.hidden = true;
+    nodes.day.hidden = true;
+    nodes.openSite.hidden = false;
 
-    if (!snapshot || !snapshot.general || snapshot.general.average20 === null) {
-      nodes.summaryEmpty.hidden = false;
-      nodes.summarySource.textContent = 'aucune donnée pour l’instant';
+    const general = snapshot && snapshot.general;
+    const average = general && Number.isFinite(general.average20) ? general.average20 : null;
+
+    if (average === null) {
+      nodes.average.textContent = '—';
+      nodes.average.dataset.tone = 'empty';
+      nodes.meta.textContent = 'Ouvrez École Directe dans un onglet pour voir vos moyennes calculées.';
       return;
     }
 
-    nodes.summaryEmpty.hidden = true;
-    const average = snapshot.general.average20;
-    nodes.summarySource.textContent = `${snapshot.period || 'période en cours'} · ${snapshot.counts.counted} notes prises en compte`;
+    nodes.openSite.hidden = true;
+    nodes.average.textContent = formatFr(average);
+    nodes.average.dataset.tone = average >= 15 ? 'positive' : average < 10 ? 'negative' : 'neutral';
 
-    stats.appendChild(
-      stat({
-        label: 'Moyenne générale',
-        value: formatFr(average),
-        hint: `${snapshot.general.subjectsUsed} matière(s)`,
-        tone: 'accent'
-      })
-    );
+    const counted = (snapshot.counts && snapshot.counts.counted) || 0;
+    nodes.meta.textContent = `${general.subjectsUsed || 0} matière${
+      general.subjectsUsed > 1 ? 's' : ''
+    } · ${counted} note${counted > 1 ? 's' : ''}`;
 
     if (Number.isFinite(snapshot.classGeneral)) {
-      stats.appendChild(
-        stat({
-          label: 'Classe',
-          value: formatFr(snapshot.classGeneral),
-          hint: formatDelta(average - snapshot.classGeneral),
-          tone: toneForDelta(average - snapshot.classGeneral)
-        })
+      const gap = average - snapshot.classGeneral;
+      nodes.badges.appendChild(
+        badge(
+          `${formatDelta(gap)} vs classe (${formatFr(snapshot.classGeneral)})`,
+          gap > 0 ? 'positive' : gap < 0 ? 'negative' : 'neutral'
+        )
       );
     }
-
     if (snapshot.newGrades) {
-      stats.appendChild(stat({ label: 'Nouvelles notes', value: String(snapshot.newGrades), tone: 'accent' }));
+      nodes.badges.appendChild(badge(`${snapshot.newGrades} nouvelle${snapshot.newGrades > 1 ? 's' : ''} note${snapshot.newGrades > 1 ? 's' : ''}`, 'accent'));
     }
 
     if (snapshot.lastGrade) {
       const grade = snapshot.lastGrade;
       const when = grade.date ? new Date(grade.date).toLocaleDateString('fr-FR') : 'date inconnue';
-      last.textContent = `Dernière note : ${grade.subject} — ${formatFr(grade.value, 1)}/${formatFr(
+      nodes.last.textContent = `Dernière note : ${grade.subject} — ${formatFr(grade.value, 1)}/${formatFr(
         grade.outOf,
         0
       )} (${when})`;
+      nodes.last.hidden = false;
     }
 
-    // Détail par matière (utile pour répondre à « et en maths ? »)
-    const list = el('div', { class: 'edp-subjects' });
-    (snapshot.subjects || []).forEach((subject) => {
-      list.appendChild(
-        el('div', { class: 'edp-subject-line' }, [
-          el('span', { text: subject.name }),
-          el('span', { class: 'edp-subject-line__value', text: formatFr(subject.average20) })
-        ])
-      );
-    });
-    if (snapshot.subjects && snapshot.subjects.length) stats.appendChild(list);
+    renderDay(snapshot);
   }
 
-  /** Sections fournies par les fonctionnalités de la page (cours, devoirs). */
-  function renderSections(snapshot) {
+  /** Cours en cours / devoirs du jour, sur une seule ligne, s'ils sont connus. */
+  function renderDay(snapshot) {
     const sections = (snapshot && snapshot.sections) || {};
-    const body = nodes.sectionsBody;
-    body.textContent = '';
-    let anything = false;
+    const parts = [];
 
-    if (sections.timetable && (sections.timetable.current || sections.timetable.next)) {
-      anything = true;
-      const timetable = sections.timetable;
-      if (timetable.current) {
-        body.appendChild(
-          stat({
-            label: 'Cours en cours',
-            value: timetable.current.subject,
-            hint: `${timetable.current.time}${timetable.current.room ? ` · ${timetable.current.room}` : ''}`,
-            tone: 'accent'
-          })
-        );
-      }
-      if (timetable.next) {
-        body.appendChild(
-          stat({
-            label: 'Prochain cours',
-            value: timetable.next.subject,
-            hint: `${timetable.next.time} · dans ${formatFr(timetable.next.startsInMinutes / 60, 1)} h`
-          })
-        );
-      }
+    const timetable = sections.timetable;
+    if (timetable && timetable.current) {
+      parts.push(`En cours : ${timetable.current.subject} (${timetable.current.time})`);
+    } else if (timetable && timetable.next) {
+      parts.push(`Prochain cours : ${timetable.next.subject} à ${timetable.next.time}`);
     }
 
     if (sections.homework) {
-      anything = true;
-      body.appendChild(
-        stat({
-          label: 'Devoirs',
-          value: `${sections.homework.today} aujourd’hui · ${sections.homework.late} en retard`,
-          hint: sections.homework.next && sections.homework.next[0]
-            ? `${sections.homework.next[0].subject} — ${sections.homework.next[0].label.slice(0, 48)}`
-            : null,
-          tone: sections.homework.late ? 'negative' : 'neutral'
-        })
+      parts.push(
+        `${sections.homework.today} devoir${sections.homework.today > 1 ? 's' : ''} aujourd’hui · ${
+          sections.homework.late
+        } en retard`
       );
     }
 
-    nodes.sections.hidden = !anything;
+    nodes.day.textContent = parts.join(' · ');
+    nodes.day.hidden = parts.length === 0;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Actions
+  // ---------------------------------------------------------------------------
+
+  function openSite() {
+    API.tabs.create({ url: 'https://www.ecoledirecte.com/' });
+    window.close();
+  }
+
+  /**
+   * Ouvre le simulateur DANS LA PAGE.
+   *
+   * Le popup ne peut pas simuler lui-même : les notes sont dans le DOM de
+   * l'onglet. On demande donc au content script d'ouvrir son tiroir sur la
+   * section « Simulateur de notes ». Trois cas possibles, traités dans l'ordre :
+   *   - un onglet École Directe répond  -> le tiroir s'ouvre, le popup se ferme ;
+   *   - l'onglet est École Directe mais muet (page en chargement, extension
+   *     rechargée) -> on demande de recharger, plutôt que d'ouvrir un doublon ;
+   *   - aucun onglet École Directe -> on ouvre le site.
+   */
+  async function openSimulator() {
+    const tab = await activeTab();
+    if (!tab || tab.id === undefined) {
+      openSite();
+      return;
+    }
+
+    try {
+      const response = await API.tabs.sendMessage(tab.id, { type: MESSAGES.OPEN_SIMULATOR });
+      const data = response && response.ok ? response.data : null;
+      if (data && data.opened) {
+        if (data.simulator) {
+          window.close();
+          return;
+        }
+        toast('Tiroir ouvert. Le simulateur apparaît sur la page des notes.');
+        return;
+      }
+    } catch (error) {
+      console.debug('[ED+] content script injoignable :', error);
+    }
+
+    if (typeof tab.url === 'string' && /ecoledirecte\.com/i.test(tab.url)) {
+      toast('Rechargez la page École Directe, puis réessayez.');
+      return;
+    }
+    openSite();
+  }
+
+  /** « Paramètres » : la carte est plus bas dans le popup, on y va. */
+  function showSettings() {
+    try {
+      nodes.settings.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      // Firefox 109 sans options de défilement : saut direct, sans animation.
+      nodes.settings.scrollIntoView();
+    }
+    try {
+      nodes.theme.focus({ preventScroll: true });
+    } catch (error) {
+      nodes.theme.focus();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -186,26 +279,25 @@
 
   async function loadSettingsIntoUi() {
     const settings = await EDP.settings.get();
-    document.documentElement.dataset.edpTheme = EDP.theme ? EDP.theme.resolve(settings.theme) : 'light';
-    nodes.enabled.checked = settings.enabled;
+    EDP.theme.apply(settings.theme);
+    paintTheme();
+
     nodes.theme.value = settings.theme;
+    nodes.enabled.checked = settings.enabled;
     nodes.modules.grades.checked = settings.modules.grades !== false;
     nodes.modules.simulator.checked = settings.modules.simulator !== false;
     nodes.modules.timetable.checked = settings.modules.timetable !== false;
     nodes.modules.homework.checked = settings.modules.homework !== false;
     nodes.modules.themeToggle.checked = settings.modules.themeToggle !== false;
+    nodes.modules.averageHud.checked = settings.modules.averageHud !== false;
     nodes.badge.checked = settings.badgeNewGrades !== false;
     return settings;
   }
 
   function wireSettings() {
-    nodes.enabled.addEventListener('change', () => EDP.settings.set({ enabled: nodes.enabled.checked }));
-
-    nodes.theme.addEventListener('change', async () => {
-      const settings = await EDP.settings.set({ theme: nodes.theme.value });
-      // Le popup s'applique son propre thème immédiatement : sans ça, il
-      // faudrait le refermer et le rouvrir pour voir le changement.
-      document.documentElement.dataset.edpTheme = EDP.theme ? EDP.theme.resolve(settings.theme) : 'light';
+    nodes.enabled.addEventListener('change', async () => {
+      await EDP.settings.set({ enabled: nodes.enabled.checked });
+      toast(nodes.enabled.checked ? '' : 'Extension désactivée : la page reste d’origine.');
     });
 
     Object.entries(nodes.modules).forEach(([key, input]) => {
@@ -217,11 +309,7 @@
     nodes.reset.addEventListener('click', async () => {
       await EDP.settings.reset();
       await loadSettingsIntoUi();
-    });
-
-    nodes.openSite.addEventListener('click', () => {
-      API.tabs.create({ url: 'https://www.ecoledirecte.com/' });
-      window.close();
+      toast('Réglages réinitialisés.');
     });
   }
 
@@ -231,6 +319,22 @@
 
   function bindNodes() {
     nodes.version = document.getElementById('version');
+    nodes.themeToggle = document.getElementById('theme-toggle');
+    nodes.themeToggleText = document.getElementById('theme-toggle-text');
+
+    nodes.average = document.getElementById('average');
+    nodes.period = document.getElementById('period');
+    nodes.meta = document.getElementById('average-meta');
+    nodes.badges = document.getElementById('average-badges');
+    nodes.last = document.getElementById('last-grade');
+    nodes.day = document.getElementById('day');
+    nodes.openSite = document.getElementById('open-site');
+
+    nodes.openSimulator = document.getElementById('open-simulator');
+    nodes.openSettings = document.getElementById('open-settings');
+    nodes.toast = document.getElementById('toast');
+    nodes.settings = document.getElementById('settings');
+
     nodes.enabled = document.getElementById('enabled');
     nodes.theme = document.getElementById('theme');
     nodes.modules = {
@@ -238,29 +342,33 @@
       simulator: document.getElementById('module-simulator'),
       timetable: document.getElementById('module-timetable'),
       homework: document.getElementById('module-homework'),
-      themeToggle: document.getElementById('module-theme-toggle')
+      themeToggle: document.getElementById('module-theme-toggle'),
+      averageHud: document.getElementById('module-average-hud')
     };
     nodes.badge = document.getElementById('badge');
     nodes.reset = document.getElementById('reset');
-    nodes.openSite = document.getElementById('open-site');
-    nodes.summary = document.getElementById('summary');
-    nodes.summaryStats = document.getElementById('summary-stats');
-    nodes.summaryLast = document.getElementById('summary-last');
-    nodes.summaryEmpty = document.getElementById('summary-empty');
-    nodes.summarySource = document.getElementById('summary-source');
-    nodes.sections = document.getElementById('sections');
-    nodes.sectionsBody = document.getElementById('sections-body');
   }
 
   async function main() {
     bindNodes();
     nodes.version.textContent = `v${EDP.VERSION} · non officiel`;
-    wireSettings();
-    await loadSettingsIntoUi();
 
+    wireTheme();
+    wireSettings();
+    nodes.openSite.addEventListener('click', openSite);
+    nodes.openSimulator.addEventListener('click', openSimulator);
+    nodes.openSettings.addEventListener('click', showSettings);
+
+    const settings = await loadSettingsIntoUi();
+
+    // Le résumé vient du background (cache écrit par le content script) : le
+    // popup n'ouvre pas d'onglet et ne recalcule rien.
     const snapshot = await request(MESSAGES.GET_SNAPSHOT);
     renderSummary(snapshot);
-    renderSections(snapshot);
+
+    if (!settings.enabled) {
+      toast('Extension désactivée : rien n’est calculé sur les pages.');
+    }
   }
 
   document.addEventListener('DOMContentLoaded', () => {

@@ -1,0 +1,107 @@
+/* ==========================================================================
+   styles/components/simulator.css — simulateur de notes
+   --------------------------------------------------------------------------
+   Chargé UNIQUEMENT dans le shadow root du panneau (voir
+   content/ui/panel.js), en même temps que base.css et panel.css. Les styles du
+   site ne peuvent donc ni déformer la liste des hypothèses ni masquer les
+   boutons de retrait.
+
+   Ne contient que la mise en page propre au simulateur : les champs, les
+   boutons et les tableaux viennent de base.css (.edp-input, .edp-button,
+   .edp-table…), pour rester cohérent avec le reste du panneau.
+   ========================================================================== */
+
+/* Le bouton « Ajouter » occupe la dernière cellule du formulaire et s'aligne
+   sur la hauteur des champs, pas sur celle de leur libellé. */
+.edp-sim-submit {
+  display: flex;
+  align-items: flex-end;
+}
+
+.edp-sim-submit .edp-button {
+  width: 100%;
+}
+
+/* --- Liste des notes fictives ------------------------------------------ */
+.edp-sim-notes {
+  display: grid;
+  gap: 4px;
+  margin: var(--edp-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edp-sim-notes[hidden] {
+  display: none;
+}
+
+.edp-sim-note {
+  display: flex;
+  align-items: center;
+  gap: var(--edp-space-2);
+  padding: 4px 4px 4px 8px;
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-sm);
+  background: var(--edp-surface);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le nom de la matière est la seule partie qui peut être longue : c'est donc
+   elle qui se tronque, jamais la valeur ni le bouton. */
+.edp-sim-note__subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.edp-sim-note__value {
+  margin-left: auto;
+  white-space: nowrap;
+  color: var(--edp-muted);
+}
+
+.edp-sim-note__remove {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--edp-radius-sm);
+  background: transparent;
+  color: var(--edp-muted);
+  font: 600 14px/1 var(--edp-font);
+  cursor: pointer;
+}
+
+.edp-sim-note__remove:hover {
+  background: var(--edp-surface-2);
+  color: var(--edp-negative);
+}
+
+.edp-sim-note__remove:focus-visible {
+  outline: 2px solid var(--edp-accent);
+  outline-offset: 1px;
+}
+
+.edp-sim-empty {
+  margin: var(--edp-space-2) 0 0;
+  font-size: 11px;
+  color: var(--edp-muted);
+}
+
+.edp-sim-empty[hidden] {
+  display: none;
+}
+
+/* Message de saisie invalide : rouge, sur une seule ligne. */
+.edp-sim-status {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--edp-negative);
+}
+
+.edp-sim-status[hidden] {
+  display: none;
+}

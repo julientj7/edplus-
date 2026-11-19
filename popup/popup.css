@@ -1,14 +1,18 @@
 /* ==========================================================================
    popup/popup.css — mise en page du popup
    --------------------------------------------------------------------------
-   Les couleurs et les primitives viennent de styles/tokens.css et de
-   styles/base.css, déjà chargés dans popup.html. Ici, uniquement la mise en
-   page propre au popup. Aucune couleur en dur : le thème sombre fonctionne donc
-   sans une seule ligne supplémentaire.
+   Aucune couleur en dur : tout vient de styles/tokens.css (bloc clair + bloc
+   [data-edp-theme="dark"]). Le mode sombre du popup ne demande donc aucune règle
+   supplémentaire — c'est le même attribut que sur la page, posé par
+   content/features/theme.js.
+
+   Ici : uniquement la mise en page (en-tête, chiffre principal, actions,
+   réglages). Les primitives (.edp-button, .edp-card, .edp-input…) sont dans
+   styles/base.css, déjà chargé par popup.html.
    ========================================================================== */
 
 body.edp-popup {
-  width: 348px;
+  width: 360px;
   margin: 0;
   padding: 0;
   background: var(--edp-bg);
@@ -16,33 +20,117 @@ body.edp-popup {
   font: 400 13px/1.4 var(--edp-font);
 }
 
+/* `hidden` doit gagner contre les `display: flex` de nos composants : sans
+   cette ligne, un bouton masqué par JS resterait visible dans une grille. */
+[hidden] {
+  display: none !important;
+}
+
+/* ==========================================================================
+   En-tête
+   ========================================================================== */
+
 .edp-popup__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--edp-space-2);
   padding: var(--edp-space-3);
   border-bottom: 1px solid var(--edp-border);
   background: var(--edp-surface);
 }
 
+/* Le logo est l'icône 48 px de l'extension, réduite. `border-radius` évite le
+   coin carré des PNG générés ; aucun filtre, il suit déjà nos couleurs. */
+.edp-popup__logo {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.edp-popup__identity {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .edp-popup__title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .edp-popup__version {
-  margin: 2px 0 0;
+  margin: 1px 0 0;
   font-size: 10.5px;
   color: var(--edp-muted);
 }
 
+/* --- Bouton de thème ---------------------------------------------------- */
+/* Pilule compacte : icône + état (« Clair » / « Sombre »). Elle reste sur une
+   seule ligne, sinon le titre de l'en-tête se retrouve écrasé. */
+.edp-theme-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border: 1px solid var(--edp-border);
+  border-radius: 999px;
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  font: 600 11.5px/1 var(--edp-font);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.edp-theme-toggle:hover {
+  border-color: var(--edp-accent);
+  color: var(--edp-accent);
+}
+
+.edp-theme-toggle[aria-pressed="true"] {
+  border-color: var(--edp-accent);
+  background: var(--edp-accent-soft);
+  color: var(--edp-accent);
+}
+
+.edp-theme-toggle__icon {
+  display: inline-flex;
+}
+
+/* Les SVG héritent de la couleur du bouton (currentColor).
+   L'état du bouton (aria-pressed) choisit l'icône : lune en sombre, soleil en
+   clair. C'est du CSS pur, donc rien à masquer côté JS — `hidden` n'existe pas
+   sur un élément SVG et l'icône serait restée affichée. */
+.edp-theme-toggle__icon svg {
+  display: block;
+}
+
+.edp-theme-toggle__icon #icon-moon {
+  display: none;
+}
+
+.edp-theme-toggle[aria-pressed="true"] #icon-moon {
+  display: block;
+}
+
+.edp-theme-toggle[aria-pressed="true"] #icon-sun {
+  display: none;
+}
+
+/* ==========================================================================
+   Contenu
+   ========================================================================== */
+
 .edp-popup__main {
-  padding: var(--edp-space-3);
   display: flex;
   flex-direction: column;
   gap: var(--edp-space-2);
+  padding: var(--edp-space-3);
   max-height: 560px;
   overflow-y: auto;
 }
@@ -52,13 +140,177 @@ body.edp-popup {
 }
 
 .edp-popup__privacy {
-  margin: var(--edp-space-2) 0 0;
-  font-size: 10.5px;
+  margin: var(--edp-space-1) 0 0;
+  font-size: 10px;
+  line-height: 1.45;
   color: var(--edp-muted);
   text-align: center;
 }
 
-/* --- Interrupteurs ---------------------------------------------------- */
+/* --- Carte « moyenne générale » ---------------------------------------- */
+.edp-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--edp-space-3);
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius);
+  background: var(--edp-surface);
+}
+
+.edp-hero__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--edp-space-2);
+}
+
+.edp-hero__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--edp-muted);
+}
+
+.edp-hero__period {
+  font-size: 10.5px;
+  color: var(--edp-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Le chiffre, et rien d'autre à côté : c'est la hiérarchie de l'écran. */
+.edp-hero__value {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.edp-hero__value[data-tone="positive"] {
+  color: var(--edp-positive);
+}
+
+.edp-hero__value[data-tone="negative"] {
+  color: var(--edp-negative);
+}
+
+.edp-hero__value[data-tone="empty"] {
+  color: var(--edp-muted);
+}
+
+.edp-hero__meta {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--edp-muted);
+}
+
+.edp-hero__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.edp-hero__badges:empty {
+  display: none;
+}
+
+/* Ligne secondaire (cours en cours, dernière note) : une seule ligne, coupée
+   par des points de suspension plutôt que de faire grandir la carte. */
+.edp-hero__line {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--edp-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edp-popup__cta {
+  margin-top: var(--edp-space-2);
+  width: 100%;
+  padding: 8px 10px;
+}
+
+/* ==========================================================================
+   Actions rapides
+   ========================================================================== */
+
+.edp-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--edp-space-2);
+}
+
+.edp-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 8px;
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-sm);
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  font: 600 12px/1.2 var(--edp-font);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+
+.edp-action:hover {
+  border-color: var(--edp-accent);
+  color: var(--edp-accent);
+}
+
+.edp-action--primary {
+  border-color: var(--edp-accent);
+  background: var(--edp-accent);
+  color: #fff;
+}
+
+.edp-action--primary:hover {
+  background: color-mix(in srgb, var(--edp-accent) 88%, #000);
+  border-color: var(--edp-accent);
+  color: #fff;
+}
+
+.edp-action svg {
+  flex: none;
+}
+
+/* Repli pour Firefox 109-112, sans color-mix : on garde l'aplat d'accent. */
+@supports not (background-color: color-mix(in srgb, red 50%, blue)) {
+  .edp-action--primary:hover {
+    background: var(--edp-accent);
+  }
+}
+
+/* ==========================================================================
+   Message éphémère et réglages
+   ========================================================================== */
+
+.edp-popup__toast {
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--edp-warning);
+  border-radius: var(--edp-radius-sm);
+  background: var(--edp-surface);
+  color: var(--edp-warning);
+  font-size: 11px;
+}
+
+/* Le bouton « Paramètres » fait défiler jusqu'ici : on laisse un peu d'air
+   au-dessus pour que le titre ne colle pas au bord. */
+#settings {
+  scroll-margin-top: var(--edp-space-2);
+}
+
+/* --- Interrupteurs et champs ------------------------------------------- */
 .edp-switch {
   display: inline-flex;
   align-items: center;
@@ -83,21 +335,16 @@ body.edp-popup {
   border-radius: var(--edp-radius-sm);
 }
 
-/* --- Détail d'une matière dans le résumé ------------------------------ */
-.edp-subject-line {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--edp-space-2);
-  padding: 3px 0;
-  border-bottom: 1px solid var(--edp-surface-2);
-  font-size: 12px;
+/* --- Accessibilité ----------------------------------------------------- */
+.edp-theme-toggle:focus-visible,
+.edp-action:focus-visible {
+  outline: 2px solid var(--edp-accent);
+  outline-offset: 2px;
 }
 
-.edp-subject-line:last-child {
-  border-bottom: none;
-}
-
-.edp-subject-line__value {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+@media (prefers-reduced-motion: reduce) {
+  .edp-theme-toggle,
+  .edp-action {
+    transition: none;
+  }
 }

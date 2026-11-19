@@ -126,47 +126,116 @@
   }
 
   /**
-   * Simulateur : applique un scénario à un bundle SANS modifier les données
-   * réelles, et renvoie l'écart obtenu.
+   * Fabrique une note FICTIVE à partir d'une hypothèse saisie.
    *
-   * @param {object} bundle   bundle enrichi (avec subjects[].average20)
-   * @param {object} scenario { subjectKey, value, outOf, coefficient }
-   * @param {object} settings réglages courants
+   * Elle a exactement la forme d'une note réelle (voir content/data/model.js) :
+   * c'est ce qui permet de la faire passer dans le même moteur de calcul, sans
+   * branche spéciale ni second calcul parallèle — donc sans risque que les deux
+   * finissent par diverger.
+   *
+   * @param {object} subject  matière du bundle (name, key)
+   * @param {object} scenario { value, outOf, coefficient }
+   * @param {number} index    rang de l'hypothèse (identifiant lisible en debug)
    */
-  function simulate(bundle, scenario, settings) {
-    const base = computeBundle(bundle, settings);
-    if (!scenario) return { base, simulated: base, delta: null, subjectDelta: null };
-
-    const target = bundle.subjects.find((subject) => subject.key === scenario.subjectKey);
-    if (!target) return { base, simulated: base, delta: null, subjectDelta: null };
-
-    const virtualGrade = {
-      subject: target.name,
-      subjectKey: target.key,
+  function virtualGrade(subject, scenario, index = 0) {
+    const value = Number(scenario.value);
+    const outOf = Number(scenario.outOf) > 0 ? Number(scenario.outOf) : 20;
+    const coefficient = Number(scenario.coefficient) > 0 ? Number(scenario.coefficient) : 1;
+    return {
+      id: `sim-${index}-${subject.key}`,
+      subject: subject.name,
+      subjectKey: subject.key,
       label: 'Note simulée',
-      value: Number(scenario.value),
-      outOf: Number(scenario.outOf) || 20,
-      value20: round2(((Number(scenario.value) || 0) / (Number(scenario.outOf) || 20)) * 20),
-      coefficient: Number(scenario.coefficient) || 1,
-      date: new Date(),
+      value,
+      outOf,
+      value20: round2((value / outOf) * 20),
+      coefficient,
+      date: null, // une hypothèse n'a pas de date : elle ne doit pas fausser les tris
       status: EDP.GRADE_STATUS.COUNTED,
       counted: true,
       classAverage: null,
-      source: 'simulation'
+      classMin: null,
+      classMax: null,
+      source: 'simulation',
+      raw: ''
     };
+  }
+
+  /**
+   * Ajoute les notes fictives d'une matière et recalcule son coefficient.
+   *
+   * Le coefficient d'une matière vaut par défaut, dans ce projet, la somme des
+   * coefficients de ses devoirs comptés (voir model.buildBundle). On applique la
+   * MÊME règle ici : sans ça, une note simulée avec un gros coefficient
+   * changerait la moyenne de la matière sans changer son poids dans la moyenne
+   * générale, et le chiffre affiché serait faux dès que la note arriverait
+   * vraiment. Une surcharge manuelle de l'utilisateur reste prioritaire.
+   */
+  function withVirtualGrades(subject, virtuals, settings) {
+    const grades = subject.grades.concat(virtuals);
+    const coefficient =
+      EDP.model && typeof EDP.model.subjectCoefficient === 'function'
+        ? EDP.model.subjectCoefficient({ ...subject, grades }, settings)
+        : subject.coefficient;
+    return { ...subject, grades, coefficient };
+  }
+
+  /**
+   * Simulateur multi-notes : applique PLUSIEURS hypothèses d'un coup, sur une
+   * copie du bundle, et renvoie l'écart par matière et sur la générale.
+   *
+   * Une hypothèse dont la matière est absente du relevé est ignorée (elle ne
+   * peut pas être calculée) : c'est pour ça que `count` peut être inférieur au
+   * nombre d'hypothèses reçues.
+   *
+   * @param {object} bundle    bundle enrichi (avec subjects[].average20)
+   * @param {Array}  scenarios [{ subjectKey, value, outOf, coefficient }, …]
+   * @param {object} settings  réglages courants
+   * @returns {{ base, simulated, delta: number|null, subjects: object[], count: number }}
+   */
+  function simulateAll(bundle, scenarios, settings) {
+    const base = computeBundle(bundle, settings);
+    const list = (scenarios || []).filter(
+      (scenario) => scenario && scenario.subjectKey && Number.isFinite(Number(scenario.value))
+    );
+
+    const unchanged = { base, simulated: base, delta: null, subjects: [], count: 0 };
+    if (!list.length) return unchanged;
+
+    const extras = new Map();
+    list.forEach((scenario, index) => {
+      const target = (bundle.subjects || []).find((subject) => subject.key === scenario.subjectKey);
+      if (!target) return;
+      if (!extras.has(target.key)) extras.set(target.key, []);
+      extras.get(target.key).push(virtualGrade(target, scenario, index));
+    });
+    if (!extras.size) return unchanged;
 
     const simulatedBundle = {
       ...bundle,
-      subjects: bundle.subjects.map((subject) =>
-        subject.key === target.key
-          ? { ...subject, grades: subject.grades.concat([virtualGrade]) }
+      subjects: (bundle.subjects || []).map((subject) =>
+        extras.has(subject.key)
+          ? withVirtualGrades(subject, extras.get(subject.key), settings)
           : subject
       )
     };
 
     const simulated = computeBundle(simulatedBundle, settings);
-    const baseSubject = base.subjects.find((subject) => subject.key === target.key) || {};
-    const simulatedSubject = simulated.subjects.find((subject) => subject.key === target.key) || {};
+
+    const subjects = Array.from(extras.keys()).map((key) => {
+      const before = base.subjects.find((subject) => subject.key === key) || {};
+      const after = simulated.subjects.find((subject) => subject.key === key) || {};
+      const comparable = Number.isFinite(before.average20) && Number.isFinite(after.average20);
+      return {
+        key,
+        name: after.name || before.name || key,
+        baseAverage20: Number.isFinite(before.average20) ? before.average20 : null,
+        simulatedAverage20: Number.isFinite(after.average20) ? after.average20 : null,
+        delta: comparable ? round2(after.average20 - before.average20) : null,
+        coefficient: Number.isFinite(after.coefficient) ? after.coefficient : null,
+        simulatedGrades: extras.get(key).length
+      };
+    });
 
     return {
       base,
@@ -175,11 +244,20 @@
         base.general.average20 === null || simulated.general.average20 === null
           ? null
           : round2(simulated.general.average20 - base.general.average20),
-      subjectDelta:
-        baseSubject.average20 === null || simulatedSubject.average20 === null
-          ? null
-          : round2(simulatedSubject.average20 - baseSubject.average20)
+      subjects,
+      count: list.length
     };
+  }
+
+  /**
+   * Compatibilité mono-note : un seul scénario, avec `subjectDelta`.
+   * Utilisé par `scripts/self-check.mjs` et par tout appel qui ne veut que la
+   * première matière touchée.
+   */
+  function simulate(bundle, scenario, settings) {
+    const result = simulateAll(bundle, scenario ? [scenario] : [], settings);
+    const first = result.subjects[0] || null;
+    return { ...result, subjectDelta: first ? first.delta : null };
   }
 
   /**
@@ -207,5 +285,14 @@
     return round2((neededOn20 / 20) * outOf);
   }
 
-  EDP.averages = { weightedMean, subjectAverage, computeBundle, simulate, neededGrade, neededGradeOnScale };
+  EDP.averages = {
+    weightedMean,
+    subjectAverage,
+    computeBundle,
+    simulate,
+    simulateAll,
+    virtualGrade,
+    neededGrade,
+    neededGradeOnScale
+  };
 })();

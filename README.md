@@ -29,13 +29,13 @@ shared/
   settings.js                 Couche de réglages partagée : get/set/reset/subscribe
 background/
   background.js               Event page : init des réglages, cache du résumé, pastille
-  messages.js                 Routeur de messages (une table type → handler)
+  messages.js                 Routeur de messages du background (le content script a le sien)
   badge.js                    Pastille « N nouvelles notes » sur l'icône
 content/
   main.js                     Orchestrateur : démarrage, recalcul, diffusion, arrêt
   core/
     dom.js                    Helpers DOM tolérants ($, $$, waitFor, onDomChange)
-    messaging.js              Client de messagerie côté page (jamais d'exception)
+    messaging.js              Messagerie côté page : envoi sans exception + routeur (register)
     registry.js               Registre des fonctionnalités (mount/unmount idempotent)
     router.js                 Détection de l'écran courant (notes / EDT / devoirs)
   data/
@@ -49,24 +49,25 @@ content/
     dark-mode.js              Suivi du thème du système d'exploitation
     theme-toggle.js           Bouton flottant lune/soleil (dans le shadow root du panneau)
     grades.js                 Carte des moyennes + bande de résumé dans la page
-    simulator.js              « Et si j'avais 17 ? » et « il me faut combien ? »
+    simulator.js              Liste de notes fictives + question inverse (« il me faut combien ? »)
     timetable.js              Cours en cours / suivant, surlignage des lignes
     homework.js               Devoirs en retard, aujourd'hui, sous 48 h
   ui/
     components.js             Composants (carte, tableau, champ…) sans innerHTML
-    panel.js                  Pastille + tiroir en Shadow DOM
+    panel.js                  Pastille, tiroir et panneau de moyenne (Shadow DOM)
 styles/
   tokens.css                  Variables de design (clair et sombre)
   base.css                    Primitives d'interface + hôte du panneau  (2 usages)
   dark.css                    Surcharges du SITE en sombre — partie fragile
   components/panel.css        Mise en page de la pastille et du tiroir
+  components/simulator.css    Simulateur : liste des hypothèses (shadow root)
   features/grades.css         Lisibilité du tableau de notes du site
   features/timetable.css      Surlignage « en cours » / « suivant »
   features/homework.css       Marquage retard / imminent / fait
 popup/
   popup.html                  Résumé (moyenne, dernière note, cours, devoirs)
   popup.css                   Mise en page du popup
-  popup.js                    Liaison aux réglages partagés et au résumé
+  popup.js                    Résumé, bascule du thème, accès simulateur, réglages
 scripts/
   make-icons.py               Régénère les icônes (bibliothèque standard, sans Pillow)
   self-check.mjs              Vérifie le moteur de calcul hors navigateur
@@ -237,6 +238,12 @@ sur les cases à cocher. Les `color-mix()` sont doublés d'un repli `@supports n
 | `storage` | Réglages, brouillon du simulateur et résumé destiné au popup, en local |
 | `*://*.ecoledirecte.com/*` | Lire la page **déjà ouverte et connectée par vous** |
 
+`web_accessible_resources` n'ajoute aucune permission : il autorise seulement la
+page École Directe à lire nos **feuilles de style**, que `panel.js` injecte dans
+le shadow root. Sans cette déclaration, le navigateur bloque la requête et le
+panneau s'affiche sans mise en page. Seul du CSS est exposé, et uniquement sur
+le domaine déjà autorisé ci-dessus.
+
 Le manifeste ne demande **ni `tabs`, ni `webRequest`, ni `<all_urls>`**, et
 `background.scripts` ne contient qu'une soixantaine de lignes sans état
 persistant. Aucun accès réseau n'est effectué par l'extension : elle ne connaît
@@ -252,6 +259,81 @@ fonctionne sans modification ; c'est une étape manuelle de plus à expliquer da
 la fiche AMO et dans le README utilisateur. Si vous préférez zéro friction,
 remplacez `strict_min_version` par `"127.0"` : plus aucune installation
 antérieure ne sera possible, mais l'accès au site est accordé automatiquement.
+
+---
+
+## La moyenne toujours visible
+
+Un petit panneau fixe, en bas à droite au-dessus de la pastille, affiche la
+moyenne générale recalculée en permanence : la valeur, l'écart à la moyenne de
+la classe et le nombre de matières et de notes prises en compte. Un clic déplie
+le détail par matière ; le réglage `Modules → Moyenne toujours visible` du popup
+le masque si vous préférez l'écran nu.
+
+Sur un écran qui ne contient aucune note (emploi du temps, messagerie), le
+panneau conserve **le dernier relevé connu** et l'annonce explicitement
+(« dernier relevé ») : il ne présente jamais une valeur ancienne comme si elle
+était à jour. Ce relevé est stocké dans `storage.local` sous `edp.lastAverage`
+et disparaît avec les autres réglages (« Réinitialiser les réglages »).
+
+---
+
+## Simulateur de notes
+
+Deux entrées : le tiroir du panneau (pastille « ED+ ») → **Simulateur de notes**,
+ou le bouton **« Simuler une note »** du popup, qui ouvre le tiroir de l'onglet
+École Directe déjà ouvert. Il ne modifie jamais le relevé : il travaille sur une
+copie, dans la page.
+
+- **Ajouter une hypothèse** : matière, note, barème (sur 10, 20, 30, 40) et
+  coefficient. La note fictive apparaît dans une liste, avec `Entrée` ou le
+  bouton « Ajouter » ; le champ se vide pour enchaîner.
+- **Recalcul immédiat** : à chaque ajout ou retrait, la moyenne de la matière et
+  la moyenne générale sont recalculées, avec l'écart par rapport au relevé réel
+  et un tableau matière par matière. Plusieurs hypothèses peuvent coexister et
+  se cumuler, y compris dans une même matière.
+- **Retirer** une hypothèse : le `×` de sa ligne. **Tout effacer** :
+  « Réinitialiser ».
+- **Question inverse** (section repliable) : « il me faut combien pour atteindre
+  15 dans cette matière ? », résolue sur le barème choisi.
+
+Deux points de rigueur, faciles à rater :
+
+1. **Le coefficient de matière est recalculé** quand une note fictive est
+   ajoutée. Sinon une note à gros coefficient changerait la moyenne de la
+   matière sans changer son poids dans la générale — et le résultat affiché ne
+   correspondrait pas à ce qui se passera quand la note arrivera vraiment. Une
+   surcharge manuelle de coefficient reste prioritaire.
+2. **Aucune écriture côté site** : le calcul passe par
+   `EDP.averages.simulateAll()`, qui construit un bundle copié. Le brouillon
+   (hypothèses comprises) est conservé dans `storage.local`, clé
+   `edp.simulation`, et « Réinitialiser les réglages » du popup l'efface aussi.
+
+---
+
+## Le popup
+
+Le popup est volontairement court, parce qu'un popup se consulte en dix
+secondes :
+
+- **en-tête** — logo, nom, version et bouton de thème (lune/soleil). Le bouton
+  montre l'état effectif et son titre annonce l'action ; il écrit dans les
+  réglages, donc la page et le popup restent d'accord. Le mode « Suivre le
+  système » reste disponible dans les paramètres, puisque le bouton, à deux
+  états, force toujours clair ou sombre ;
+- **moyenne** — le chiffre en grand, l'écart à la classe et les nouvelles notes
+  en pastilles, la dernière note et le cours en cours sur une ligne ;
+- **actions** — « Simuler une note » ouvre le simulateur dans la page (le popup
+  n'a pas accès à son DOM, il envoie un message au content script) ;
+  « Paramètres » fait défiler jusqu'à la carte de réglages du popup.
+
+Le popup ne calcule **rien** : il lit le résumé écrit par le content script via
+le background. Deux moteurs de calcul donneraient deux moyennes différentes à
+deux endroits — c'est exactement ce qu'on veut éviter.
+
+Si l'onglet actif n'est pas École Directe, « Simuler une note » ouvre le site. Si
+l'onglet l'est mais ne répond pas (page en chargement, extension rechargée), le
+popup le dit et demande de recharger, au lieu d'ouvrir un second onglet.
 
 ---
 

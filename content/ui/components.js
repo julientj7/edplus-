@@ -40,12 +40,17 @@
   function card({ title, hint = null, actions = [] } = {}) {
     const actionsRow = el('div', { class: 'edp-card__actions' }, actions);
     const body = el('div', { class: 'edp-card__body' });
+    // `actionsRow` est TOUJOURS inséré, même vide : les appelants ont le droit
+    // d'ajouter un bouton après coup via `card.actions.appendChild(...)` (le
+    // simulateur le fait). Conditionner l'insertion à `actions.length` rendait
+    // ces boutons invisibles — ils étaient ajoutés à un nœud détaché. Le style
+    // `.edp-card__actions:empty` masque le conteneur tant qu'il est vide.
     const header = el('div', { class: 'edp-card__header' }, [
       el('div', { class: 'edp-card__titles' }, [
         title ? el('h3', { class: 'edp-card__title', text: title }) : null,
         hint ? el('p', { class: 'edp-card__hint', text: hint }) : null
       ]),
-      actions.length ? actionsRow : null
+      actionsRow
     ]);
     const root = el('section', { class: 'edp-card' }, [header, body]);
     return { root, body, actions: actionsRow };

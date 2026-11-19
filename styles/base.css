@@ -69,6 +69,12 @@
   gap: var(--edp-space-2);
 }
 
+/* Le conteneur existe toujours (pour recevoir des boutons après coup), mais ne
+   doit rien occuper tant qu'aucune action n'a été ajoutée. */
+.edp-card__actions:empty {
+  display: none;
+}
+
 /* --- Statistique ------------------------------------------------------- */
 .edp-stat {
   display: flex;

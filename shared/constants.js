@@ -35,7 +35,8 @@
     settings: 'edp.settings',        // réglages utilisateur (voir DEFAULTS)
     snapshot: 'edp.snapshot',        // dernier état calculé, écrit par le content script
     simulation: 'edp.simulation',    // notes fictives du simulateur (jamais envoyées)
-    seenGrades: 'edp.seenGrades'     // empreintes des notes déjà vues (pastille)
+    seenGrades: 'edp.seenGrades',    // empreintes des notes déjà vues (pastille)
+    lastAverage: 'edp.lastAverage'   // dernier relevé connu (panneau fixe de moyenne)
   };
 
   /**
@@ -64,7 +65,9 @@
       timetable: true,
       homework: true,
       /** Bouton flottant de bascule du mode sombre sur la page. */
-      themeToggle: true
+      themeToggle: true,
+      /** Panneau fixe affichant la moyenne générale en permanence. */
+      averageHud: true
     },
     /** Pastille sur l'icône quand de nouvelles notes apparaissent. */
     badgeNewGrades: true
@@ -82,7 +85,9 @@
   EDP.MESSAGES = {
     GET_SNAPSHOT: 'edp:get-snapshot',
     RESCAN: 'edp:rescan',
-    NEW_GRADES: 'edp:new-grades'
+    NEW_GRADES: 'edp:new-grades',
+    /** Popup -> onglet : ouvrir le tiroir sur le simulateur de notes. */
+    OPEN_SIMULATOR: 'edp:open-simulator'
   };
 
   /**
