@@ -1,41 +1,96 @@
 /* ==========================================================================
    styles/features/timetable.css — repérage du cours en cours
    --------------------------------------------------------------------------
-   Classes posées par content/features/timetable.js sur les lignes de l'emploi
-   du temps, et retirées au démontage. Aucune structure n'est modifiée : on
-   ajoute seulement une classe et un marqueur visuel.
+   Classes et attributs posés par content/features/timetable.js sur les lignes
+   de l'emploi du temps, retirés au démontage. Aucune structure du site n'est
+   modifiée : on ajoute une classe, deux attributs de données, et c'est tout.
+
+   Deux principes :
+     - l'information ne repose jamais sur la seule couleur : chaque état porte
+       aussi une étiquette texte (data-edp-status), lisible en niveaux de gris
+       ou à l'impression ;
+     - toute couleur vient de tokens.css, donc le thème sombre suit sans une
+       ligne de plus. `!important` est nécessaire : on passe devant le site.
    ========================================================================== */
 
+/* --- Cours en cours ---------------------------------------------------- */
 tr.edp-now > td {
-  background-color: color-mix(in srgb, var(--edp-accent) 16%, transparent) !important;
+  background-color: color-mix(in srgb, var(--edp-accent) 15%, transparent) !important;
   font-weight: 600;
+  position: relative; /* repère de la jauge ci-dessous */
 }
 
 tr.edp-now {
-  box-shadow: inset 3px 0 0 var(--edp-accent);
+  box-shadow: inset 4px 0 0 var(--edp-accent);
 }
 
-/* Étiquette « en cours » ajoutée devant la première cellule. */
-tr.edp-now > td:first-child::before {
-  content: "en cours";
-  display: inline-block;
-  margin-right: 6px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--edp-accent);
-  color: #fff;
-  font-size: 9.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  vertical-align: middle;
+/* Jauge d'avancement : --edp-progress est posé par le script (0 % -> 100 %).
+   Un simple aplat, sans animation — donc sans coût de rendu ni distraction. */
+tr.edp-now > td:last-child::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: var(--edp-progress, 0%);
+  background-color: var(--edp-accent);
+  opacity: 0.85;
+}
+
+/* --- Prochain cours ---------------------------------------------------- */
+tr.edp-next > td {
+  background-color: color-mix(in srgb, var(--edp-accent) 5%, transparent) !important;
 }
 
 tr.edp-next {
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--edp-accent) 45%, transparent);
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--edp-accent) 45%, transparent);
 }
 
+/* --- Étiquette texte des états ---------------------------------------- */
+/* Posée sur la première cellule : `attr()` ne lit que l'élément qui porte le
+   pseudo-élément, d'où l'attribut sur <td> et non sur <tr>. */
+td[data-edp-state]::before,
+th[data-edp-state]::before {
+  content: attr(data-edp-status);
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+td[data-edp-state="now"]::before,
+th[data-edp-state="now"]::before {
+  background-color: var(--edp-accent);
+  color: var(--edp-bg);
+}
+
+td[data-edp-state="next"]::before,
+th[data-edp-state="next"]::before {
+  background-color: var(--edp-accent-soft);
+  color: var(--edp-accent);
+}
+
+td[data-edp-state="cancelled"]::before,
+th[data-edp-state="cancelled"]::before {
+  background-color: var(--edp-surface-3);
+  color: var(--edp-muted);
+}
+
+/* --- Cours annulé ------------------------------------------------------ */
 tr.edp-cancelled > td {
   opacity: 0.55;
   text-decoration: line-through;
+}
+
+/* L'étiquette reste lisible : le texte barré s'arrête à elle. */
+tr.edp-cancelled > td::before {
+  text-decoration: none;
+  opacity: 1;
 }

@@ -1,39 +1,123 @@
 /* ==========================================================================
-   styles/features/homework.css — devoirs en retard ou imminents
+   styles/features/homework.css — devoirs en retard, du jour, imminents, faits
    --------------------------------------------------------------------------
-   Classes posées par content/features/homework.js. Le but est qu'un élève voie
-   en une seconde ce qui est en retard, sans qu'on réorganise la page à sa
-   place (réorganiser le DOM d'un site tiers, c'est le meilleur moyen de casser
-   sa propre extension).
+   Classes et attributs posés par content/features/homework.js. Objectif : en
+   une seconde, un élève voit ce qui est urgent — sans qu'on réorganise la page
+   à sa place (réorganiser le DOM d'un site tiers, c'est le meilleur moyen de
+   casser sa propre extension).
+
+   Hiérarchie visuelle, du plus fort au plus discret :
+     retard   -> rouge  + barre pleine + étiquette « en retard · 2 j »
+     aujourd. -> ambre  + barre pleine + étiquette « aujourd'hui »
+     sous 48h -> ambre clair + étiquette « dans 1 j »
+     fait     -> vert + étiquette « fait », contenu estompé
    ========================================================================== */
 
+/* Retard et « pour aujourd'hui » partagent cette classe : elle ne sert qu'à
+   donner du poids au texte des lignes qui exigent une action immédiate. */
+tr.edp-urgent > td,
+li.edp-urgent {
+  font-weight: 600;
+}
+
+/* --- En retard --------------------------------------------------------- */
 tr.edp-late > td,
 li.edp-late {
-  background-color: color-mix(in srgb, var(--edp-negative) 12%, transparent) !important;
-  border-left: 3px solid var(--edp-negative);
+  background-color: color-mix(in srgb, var(--edp-negative) 13%, transparent) !important;
 }
 
+tr.edp-late {
+  box-shadow: inset 4px 0 0 var(--edp-negative);
+}
+
+/* --- Pour aujourd'hui : urgent aussi, mais pas encore « en retard » ---- */
+tr.edp-today > td,
+li.edp-today {
+  background-color: color-mix(in srgb, var(--edp-warning) 15%, transparent) !important;
+  font-weight: 600;
+}
+
+tr.edp-today {
+  box-shadow: inset 4px 0 0 var(--edp-warning);
+}
+
+/* --- Sous 48 heures ---------------------------------------------------- */
 tr.edp-soon > td,
 li.edp-soon {
-  background-color: color-mix(in srgb, var(--edp-warning) 10%, transparent) !important;
-  border-left: 3px solid var(--edp-warning);
+  background-color: color-mix(in srgb, var(--edp-warning) 7%, transparent) !important;
 }
 
+tr.edp-soon {
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--edp-warning) 55%, transparent);
+}
+
+/* --- Fait -------------------------------------------------------------- */
 tr.edp-done > td,
 li.edp-done {
-  opacity: 0.6;
+  opacity: 0.55;
   text-decoration: line-through;
 }
 
-/* Marqueur texte, pour rester lisible sans couleur (daltonisme, impression). */
-tr.edp-late > td:first-child::before {
-  content: "en retard · ";
-  font-weight: 700;
-  color: var(--edp-negative);
+tr.edp-done {
+  box-shadow: inset 4px 0 0 var(--edp-positive);
 }
 
-tr.edp-soon > td:first-child::before {
-  content: "bientôt · ";
+/* L'étiquette « fait » ne doit pas être barrée ni estompée deux fois. */
+tr.edp-done > td::before {
+  text-decoration: none;
+  opacity: 1;
+}
+
+/* --- Étiquettes texte (l'état ne repose jamais sur la couleur seule) --- */
+td[data-edp-state]::before,
+th[data-edp-state]::before,
+li[data-edp-state]::before {
+  content: attr(data-edp-status);
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
   font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+td[data-edp-state="done"]::before,
+th[data-edp-state="done"]::before,
+li[data-edp-state="done"]::before {
+  content: "✓ " attr(data-edp-status);
+  background-color: var(--edp-positive);
+  color: var(--edp-bg);
+}
+
+td[data-edp-state="late"]::before,
+th[data-edp-state="late"]::before,
+li[data-edp-state="late"]::before {
+  background-color: var(--edp-negative);
+  color: var(--edp-bg);
+}
+
+td[data-edp-state="today"]::before,
+th[data-edp-state="today"]::before,
+li[data-edp-state="today"]::before {
+  background-color: var(--edp-warning);
+  color: var(--edp-bg);
+}
+
+td[data-edp-state="soon"]::before,
+th[data-edp-state="soon"]::before,
+li[data-edp-state="soon"]::before {
+  background-color: var(--edp-surface-3);
   color: var(--edp-warning);
+}
+
+td[data-edp-state="later"]::before,
+th[data-edp-state="later"]::before,
+li[data-edp-state="later"]::before {
+  background-color: var(--edp-surface-3);
+  color: var(--edp-muted);
 }

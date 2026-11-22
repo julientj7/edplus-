@@ -26,6 +26,16 @@
 
   let current = { preference: 'auto', resolved: 'light' };
 
+  /**
+   * Habillage courant : préréglage + surcharges utilisateur.
+   *
+   * Mémorisé ici, et non relu du stockage à chaque fois, parce que `apply()`
+   * doit repeindre les VARIABLES quand le mode change tout seul (passage du
+   * système en sombre, par exemple) : le préréglage possède une palette par
+   * mode, il faut donc savoir lequel appliquer.
+   */
+  let look = { preset: 'clair-moderne', overrides: {} };
+
   /** Le système est-il en sombre ? (jamais d'exception qui remonte) */
   function systemPrefersDark() {
     try {
@@ -72,6 +82,24 @@
   }
 
   /**
+   * Écrit les variables du préréglage courant sur <html>.
+   *
+   * L'écriture est INLINE, donc elle l'emporte sur tokens.css sans que ce
+   * fichier ait à connaître un seul préréglage. Les valeurs sont validées en
+   * amont par shared/theme-presets.js : rien d'arbitraire n'arrive ici.
+   */
+  function paintVariables(resolved, root) {
+    const presets = EDP.themePresets;
+    if (!presets || !root || !root.style) return;
+    const vars = presets.varsFor(look.preset, resolved, look.overrides);
+    Object.keys(vars).forEach((name) => {
+      if (vars[name]) root.style.setProperty(name, vars[name]);
+      else root.style.removeProperty(name);
+    });
+    root.dataset.edpPreset = presets.presetById(look.preset).id;
+  }
+
+  /**
    * Applique une préférence et renvoie le thème effectif.
    * N'émet l'événement QUE si quelque chose change : le contenu du content
    * script appelle apply() à chaque recalcul, et un événement par recalcul
@@ -86,11 +114,47 @@
     root.dataset.edpTheme = resolved;
     root.dataset.edpDark = resolved === 'dark' ? '1' : '0';
     root.dataset.edpThemePref = wanted;
+    paintVariables(resolved, root);
 
     const changed = current.preference !== wanted || current.resolved !== resolved;
     current = { preference: wanted, resolved };
     if (changed) emit();
     return resolved;
+  }
+
+  /**
+   * Pose la densité d'interface sur <html>.
+   *
+   * La densité ne change AUCUNE couleur : elle ne fait que sélectionner un bloc
+   * de variables d'espacement dans tokens.css. Comme ces variables sont
+   * héritées, le panneau, son shadow root et les écrans refondus suivent
+   * immédiatement, sans une seule règle supplémentaire.
+   * @param {string} value identifiant de EDP.DENSITIES
+   */
+  function paintDensity(value) {
+    const root = document.documentElement;
+    if (!root) return;
+    const known = (EDP.DENSITIES || []).map((density) => density.id);
+    root.dataset.edpDensity = known.includes(value) ? value : 'normal';
+  }
+
+  /**
+   * Applique un habillage complet (mode + préréglage + surcharges + densité).
+   *
+   * C'est le point d'entrée à utiliser quand on dispose de l'objet de réglages
+   * entier — content script et popup s'en servent. `apply()` reste disponible
+   * pour le seul bouton de bascule, qui ne change que le mode.
+   * @param {object} settings réglages complets (ou partiels)
+   * @returns {'light'|'dark'} thème effectif
+   */
+  function applyLook(settings) {
+    const source = settings || {};
+    look = {
+      preset: source.themePreset || 'clair-moderne',
+      overrides: source.themeOverrides || {}
+    };
+    paintDensity(source.density);
+    return apply(source.theme || 'auto');
   }
 
   /** Applique ET enregistre (le stockage est la source de vérité des réglages). */
@@ -132,11 +196,16 @@
     get current() {
       return { ...current };
     },
+    /** Préréglage et surcharges actuellement appliqués (diagnostic, popup). */
+    get look() {
+      return { preset: look.preset, overrides: { ...look.overrides } };
+    },
     THEMES,
     EVENT,
     normalize,
     resolve,
     apply,
+    applyLook,
     set,
     toggle,
     nextPreference,

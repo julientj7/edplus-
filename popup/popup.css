@@ -335,9 +335,190 @@ body.edp-popup {
   border-radius: var(--edp-radius-sm);
 }
 
+/* --- Apparence : préréglages, couleurs, formes ------------------------- */
+/* Les vignettes de préréglage portent leurs couleurs en style inline (elles
+   montrent des palettes arbitraires, absentes de tokens.css) ; tout le reste
+   suit les variables, donc la personnalisation s'applique au popup lui-même. */
+/* Quatre préréglages (trois thèmes + « Personnalisé ») : deux colonnes
+   laissent un libellé lisible, là où trois colonnes tronquaient les noms. */
+.edp-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.edp-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-sm);
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  font: 600 10px/1.25 var(--edp-font);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.edp-preset:hover {
+  border-color: var(--edp-accent);
+}
+
+/* Le préréglage actif se voit sans couleur de fond : une bordure d'accent et
+   un anneau intérieur, lisibles en contraste élevé comme ailleurs. */
+.edp-preset[aria-checked="true"] {
+  border-color: var(--edp-accent);
+  box-shadow: inset 0 0 0 1px var(--edp-accent);
+}
+
+.edp-preset__swatch {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border: 1px solid var(--edp-border);
+  border-radius: 4px;
+}
+
+.edp-preset__dot {
+  flex: 1 1 0;
+}
+
+.edp-preset__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edp-colors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.edp-color {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 5px;
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-sm);
+  color: var(--edp-muted);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.edp-color input {
+  width: 28px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--edp-border);
+  border-radius: 4px;
+  background: var(--edp-bg);
+  cursor: pointer;
+}
+
+.edp-range {
+  width: 100%;
+  accent-color: var(--edp-accent);
+}
+
+/* ==========================================================================
+   Panneau de paramètres avancés
+   --------------------------------------------------------------------------
+   Une seconde vue du popup, ouverte par le bouton « Paramètres avancés ».
+   Elle remplace le contenu principal (moyenne, actions, carte rapide) plutôt
+   que de s'empiler dessous : le popup fait 360 px de large, et des réglages
+   longs poussés sous la moyenne seraient invisibles sans défilement.
+   ========================================================================== */
+
+.edp-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: var(--edp-space-2);
+}
+
+/* En-tête collant : le titre et le retour restent accessibles pendant qu'on
+   parcourt les réglages. */
+.edp-advanced__head {
+  position: sticky;
+  top: calc(-1 * var(--edp-space-3));
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--edp-space-2);
+  margin: calc(-1 * var(--edp-space-3)) calc(-1 * var(--edp-space-3)) 0;
+  padding: var(--edp-space-2) var(--edp-space-3);
+  border-bottom: 1px solid var(--edp-border);
+  background: var(--edp-bg);
+}
+
+.edp-advanced__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.edp-advanced__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--edp-border);
+  border-radius: 999px;
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  font: 600 11px/1 var(--edp-font);
+  cursor: pointer;
+}
+
+.edp-advanced__back:hover {
+  border-color: var(--edp-accent);
+  color: var(--edp-accent);
+}
+
+/* Les listes de cases (modules, blocs à masquer) restent compactes : une
+   colonne, une case par ligne, libellé à droite. */
+.edp-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.edp-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.3;
+  cursor: pointer;
+  user-select: none;
+}
+
+.edp-choice input {
+  margin: 1px 0 0;
+  accent-color: var(--edp-accent);
+  flex: none;
+}
+
+.edp-choice__label {
+  min-width: 0;
+}
+
+.edp-choice__hint {
+  display: block;
+  font-size: 10px;
+  color: var(--edp-muted);
+}
+
 /* --- Accessibilité ----------------------------------------------------- */
 .edp-theme-toggle:focus-visible,
-.edp-action:focus-visible {
+.edp-preset:focus-visible,
+.edp-action:focus-visible,
+.edp-advanced__back:focus-visible {
   outline: 2px solid var(--edp-accent);
   outline-offset: 2px;
 }

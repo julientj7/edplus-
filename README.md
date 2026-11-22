@@ -27,6 +27,7 @@ shared/
   constants.js                Espace de noms EDP, clés de stockage, réglages par défaut
   utils.js                    Lecture des notes françaises, dates, arrondis, formatage
   settings.js                 Couche de réglages partagée : get/set/reset/subscribe
+  theme-presets.js            Palettes prédéfinies + validation des surcharges de thème
 background/
   background.js               Event page : init des réglages, cache du résumé, pastille
   messages.js                 Routeur de messages du background (le content script a le sien)
@@ -37,7 +38,7 @@ content/
     dom.js                    Helpers DOM tolérants ($, $$, waitFor, onDomChange)
     messaging.js              Messagerie côté page : envoi sans exception + routeur (register)
     registry.js               Registre des fonctionnalités (mount/unmount idempotent)
-    router.js                 Détection de l'écran courant (notes / EDT / devoirs)
+    router.js                 Détection de l'écran courant (accueil / notes / EDT / devoirs)
   data/
     model.js                  Modèle normalisé : c'est le contrat stable du projet
     adapter.js                Façade de données + vue « snapshot » pour le popup
@@ -45,13 +46,18 @@ content/
     source-api.js             Source API réservée — non implémentée en v1.0 (et pourquoi)
   features/
     averages.js               Moteur de calcul pur (moyennes, simulation, objectif)
+    progress.js               Séries chronologiques pures pour les graphiques (périodes, moyenne générale, par matière)
     theme.js                  Thème : préférence, résolution « auto », bascule, événement
     dark-mode.js              Suivi du thème du système d'exploitation
     theme-toggle.js           Bouton flottant lune/soleil (dans le shadow root du panneau)
-    grades.js                 Carte des moyennes + bande de résumé dans la page
+    sidebar.js                Rails de navigation : reprise des liens du site, réduction, page active
+    grades.js                 Relevé de notes refondu (tri, filtres, pastilles) + carte du panneau
+    charts.js                 Graphiques d'évolution en SVG (moyenne générale, par matière, période, bouton afficher/masquer)
     simulator.js              Liste de notes fictives + question inverse (« il me faut combien ? »)
     timetable.js              Cours en cours / suivant, surlignage des lignes
     homework.js               Devoirs en retard, aujourd'hui, sous 48 h
+    today.js                  Vue « Aujourd'hui » : cours du jour, devoirs, notes, absences (accueil ou panneau)
+    cleanup.js                Masque des blocs d'origine choisis (encarts, actus, aides, pied de page)
   ui/
     components.js             Composants (carte, tableau, champ…) sans innerHTML
     panel.js                  Pastille, tiroir et panneau de moyenne (Shadow DOM)
@@ -60,14 +66,22 @@ styles/
   base.css                    Primitives d'interface + hôte du panneau  (2 usages)
   dark.css                    Surcharges du SITE en sombre — partie fragile
   components/panel.css        Mise en page de la pastille et du tiroir
+  components/sidebar.css      Rail de navigation (shadow root)
+  components/today.css        Vue « Aujourd'hui » (shadow root, page ou panneau)
+  components/grades.css       Relevé de notes refondu (shadow root)
+  components/charts.css       Graphiques d'évolution (shadow root)
+  components/agenda.css       Agenda de la journée, tâches, barre segmentée (shadow root)
   components/simulator.css    Simulateur : liste des hypothèses (shadow root)
-  features/grades.css         Lisibilité du tableau de notes du site
-  features/timetable.css      Surlignage « en cours » / « suivant »
-  features/homework.css       Marquage retard / imminent / fait
+  features/grades.css         Masque les tableaux de notes d'origine (relevé refondu)
+  features/timetable.css      « En cours » / « suivant » + étiquette et jauge d'avancement
+  features/homework.css       Retard / aujourd'hui / 48 h / fait, avec étiquettes texte
+  features/sidebar.css        Masque la barre d'origine et fixe les largeurs du rail
+  features/today.css          Masque le contenu principal remplacé par la vue « Aujourd'hui »
+  features/cleanup.css        Masque les blocs marqués par cleanup.js (jamais supprimés)
 popup/
-  popup.html                  Résumé (moyenne, dernière note, cours, devoirs)
+  popup.html                  Résumé (moyenne, dernière note, cours, devoirs) + panneau avancé
   popup.css                   Mise en page du popup
-  popup.js                    Résumé, bascule du thème, accès simulateur, réglages
+  popup.js                    Résumé, bascule du thème, accès simulateur, réglages et panneau avancé
 scripts/
   make-icons.py               Régénère les icônes (bibliothèque standard, sans Pillow)
   self-check.mjs              Vérifie le moteur de calcul hors navigateur
@@ -219,11 +233,66 @@ Le thème est construit en trois couches, et il faut savoir laquelle ouvrir :
 |---|---|---|
 | `styles/tokens.css` | Les couleurs, sous forme de variables. Deux blocs : clair, puis `[data-edp-theme="dark"]` | Pour changer la palette, jamais ailleurs |
 | `styles/dark.css` | Surcharges du **site** quand le sombre est actif (`html[data-edp-dark="1"]`) | Quand un bloc du site reste blanc à l'inspection |
-| `styles/base.css` + `styles/components/panel.css` | Nos propres éléments (panneau, bouton de thème) | Mise en page de l'extension |
+| `styles/base.css` + `styles/components/panel.css` + `styles/components/agenda.css` | Nos propres éléments (panneau, bouton de thème, agenda et devoirs du tiroir) | Mise en page de l'extension |
 
-Trois attributs sont posés sur `<html>` par `content/features/theme.js` :
+Quatre attributs sont posés sur `<html>` par `content/features/theme.js` :
 `data-edp-theme` (valeur effective), `data-edp-dark` (`1`/`0`, cible de
-`dark.css`) et `data-edp-theme-pref` (ce que l'utilisateur a demandé).
+`dark.css`), `data-edp-theme-pref` (ce que l'utilisateur a demandé) et
+`data-edp-density` (`compact` / `normal` / `spacious`). Un cinquième,
+`data-edp-preset`, nomme le préréglage courant (diagnostic).
+
+### Apparence personnalisable (popup > Paramètres avancés)
+
+Un préréglage (`shared/theme-presets.js`) porte **deux** palettes, claire et
+sombre, pour que le mode « Automatique » reste cohérent quel que soit le style
+choisi : Clair moderne, Sombre élégant, Contraste élevé. L'utilisateur peut
+ensuite surcharger six valeurs — accent, fond, texte, cartes, rayon, police —
+stockées dans `settings.themeOverrides` et **validées** avant d'atteindre le CSS
+(hexadécimal `#rrggbb`, rayon 0 à 24 px, police dans la liste).
+
+Ces six valeurs sont les seules écrites en inline sur `<html>` ; tout le reste
+— bordures, survols, fonds teintés, rayons dérivés — est calculé par
+`color-mix()` dans `styles/tokens.css`. Ajouter un préréglage ne demande donc
+aucune règle CSS : une entrée de plus dans `THEME_PRESETS` suffit. Les
+navigateurs sans `color-mix()` (Firefox 109-112) reçoivent un repli à valeurs
+fixes, en fin de fichier de jetons.
+
+Un quatrième choix, **« Personnalisé »**, ne porte pas de palette propre : il
+reprend celle qui est affichée au moment du clic, la stocke dans
+`themeOverrides`, puis laisse les quatre sélecteurs de couleur et le curseur de
+rayon faire le reste. Créer son thème ne fait donc jamais sauter l'apparence
+actuelle, et « Revenir au préréglage » retrouve la palette de base.
+
+### Paramètres avancés (bouton « Paramètres avancés » du popup)
+
+Le popup garde une carte courte (activation générale, pastille) et délègue le
+reste à une **seconde vue**, ouverte par « Paramètres avancés » ou par l'action
+du même nom. Elle se ferme par « Retour », sans rien perdre : chaque contrôle
+écrit dans `storage.local` immédiatement, et les onglets École Directe ouverts
+suivent par `storage.onChanged` — aucun rechargement n'est nécessaire.
+
+- **Apparence** — mode (auto / clair / sombre), thèmes prédéfinis ou
+  personnalisé, couleurs, rayon, police, réinitialisation du préréglage.
+- **Densité de l'interface** — `compact`, `normal` ou `spacious`. Les trois
+  échelles ne touchent qu'aux variables `--edp-space-*` (`styles/tokens.css`) :
+  le panneau, son shadow root, les écrans refondus et le popup se resserrent ou
+  s'aèrent ensemble, sans reconstruire une seule vue.
+- **Modifications d'interface** — une case par grande refonte : relevé de notes,
+  barre latérale, vue « Aujourd'hui », simulateur, emploi du temps, cahier de
+  textes, bouton de thème, moyenne toujours visible. Décocher démonte le module
+  et rend la page d'origine sur cet aspect uniquement.
+- **Masquer des éléments du site** — encarts et bannières, fil d'actualité,
+  aides et tutoriels, pied de page. Le choix est une liste d'identifiants
+  (`settings.hiddenElements`) ; `content/features/cleanup.js` pose
+  `data-edp-hidden="1"` sur les nœuds correspondants et
+  `styles/features/cleanup.css` les masque. **Rien n'est supprimé** : décocher
+  restaure immédiatement, et `source-dom.js` refuse de masquer un bloc qui
+  contient les notes, l'emploi du temps, le cahier de textes ou nos interfaces.
+  Les sélecteurs à ajuster sont dans `HIDE_SELECTORS` (`source-dom.js`).
+
+Un module monté peut désormais recevoir `update(ctx)` à chaque synchronisation
+(`content/core/registry.js`) : c'est ce qui applique le masquage en direct,
+sans démonter puis remonter l'interface.
 
 Le mode `auto` suit `prefers-color-scheme`. Le bouton flottant, lui, n'a que deux
 états : il **force** l'inverse de ce qui est affiché et quitte donc `auto` au
@@ -323,6 +392,119 @@ Deux points de rigueur, faciles à rater :
 
 ---
 
+## Le relevé de notes
+
+Sur l'écran Notes, `content/features/grades.js` masque les tableaux du site
+(attribut `data-edp-native-grades`, masqué par `styles/features/grades.css`) et
+les remplace par un relevé unique dans `#edp-grades-host` (shadow root, feuille
+`styles/components/grades.css`). Rien n'est supprimé : au démontage, les
+attributs sont retirés et les tableaux d'origine réapparaissent intacts.
+
+| Élément | Contenu |
+| --- | --- |
+| En-tête | moyenne générale (moteur de calcul), jauge, moyenne de la classe et écart, notes retenues |
+| Filtres | toutes / comptées / hors moyenne / absences, plus un filtre par matière et une recherche |
+| Tris | plus récentes, plus anciennes, meilleures, plus basses, par matière, coefficient |
+| Pastilles | trois paliers depuis `tokens.css` (≥ 15, 10 à 15, < 10) ; gris pour hors moyenne et absences |
+| Note | valeur brute `/barème`, et équivalent `/20` quand le barème diffère |
+
+Deux points de rigueur :
+
+1. **Tri et filtres ne touchent qu'à l'affichage** : ils travaillent sur des
+   copies des notes normalisées, donc la moyenne affichée reste celle du moteur
+   de calcul, quels que soient les filtres actifs.
+2. **Le simulateur reste la seule source des hypothèses** : `grades.js` relit
+   `edp.simulation` et le passe à `EDP.averages.simulateAll()`. La moyenne
+   simulée apparaît dans l'en-tête et sous chaque matière concernée ; elle se
+   met à jour dès que le simulateur enregistre (écoute de `storage.onChanged`).
+
+Si les notes ne sont pas remplacées, vérifier d'abord la route
+(`EDP.router.debug()`) puis `EDP.data.sourceDom.debug()` : la détection exige
+l'écran Notes et au moins un tableau reconnu. Décocher « Moyennes calculées »
+dans le popup suffit à revenir à l'affichage d'origine.
+
+## Graphiques d'évolution des notes
+
+Sous le relevé (et donc sur le même écran), `content/features/charts.js` insère
+`#edp-charts-host` **après le dernier tableau de notes du site** — pas avant :
+le relevé refondu s'ancre juste avant le premier tableau et se replace à chaque
+mutation, se disputer la même ancre ferait danser les deux blocs.
+
+| Élément | Contenu |
+| --- | --- |
+| Courbe de la moyenne générale | moyenne de toutes les notes reçues à chaque date, aire teintée |
+| Courbes par matière | une ligne par matière, légende cliquable (6 matières affichées d'emblée, les plus notées) |
+| Période | trimestre, année scolaire, ou deux dates personnalisées (`<input type="date">`) |
+| Bouton | « Masquer / Afficher les graphiques », mémorisé dans `chartsVisible` |
+
+Aucune librairie : les courbes sont un `<svg>` construit avec
+`createElementNS`. Le CSP de MV3 interdit tout script distant, donc Chart.js
+devrait être embarqué (~200 ko) pour deux courbes ; le SVG tient en quelques
+dizaines de lignes, reste net à toutes les tailles, hérite des variables de
+thème et n'ajoute aucune dépendance à auditer. Les six teintes viennent de
+`tokens.css` (`--edp-chart-1` à `--edp-chart-6`, dérivées de l'accent et des
+couleurs sémantiques) : le mode sombre et un préréglage personnalisé suivent
+sans qu'une règle bouge, et la densité s'applique puisqu'aucun espacement n'est
+écrit en dur.
+
+Les calculs sont dans `content/features/progress.js` (code pur, vérifié par
+`scripts/self-check.mjs`) :
+
+1. Seules les notes **comptées et datées** entrent dans une courbe. Les notes
+   sans date sont ignorées et le pied du bloc l'indique.
+2. Une moyenne « à une date » est la moyenne de toutes les notes **jusqu'à cette
+   date incluse**. La courbe générale rejoue `EDP.averages.computeBundle()`, donc
+   elle ne peut pas contredire l'en-tête du relevé.
+3. Les coefficients de matière sont ceux de la période entière : les faire
+   varier à chaque note ferait sauter la courbe sans explication lisible.
+4. Le découpage des trimestres est **estimé** (septembre → décembre, décembre →
+   mars, mars → août) : École Directe n'expose pas ses bornes dans la page, et
+   l'interface le dit. Si le trimestre courant ne contient aucune note (vacances,
+   rentrée), les graphiques basculent sur le dernier trimestre noté.
+
+Le tracé ne répond à aucun événement réseau : il relit `EDP.data.get()` et se
+redessine quand l'empreinte des notes change (le site charge ses notes en Ajax).
+
+## Vue « Aujourd'hui »
+
+`content/features/today.js` réunit sur un seul écran ce qui compte dans la
+journée : un bandeau « en cours / prochain cours », les cours du jour, les
+devoirs à rendre aujourd'hui ou demain (les retards restent visibles), les
+dernières notes et les absences/retards. La moyenne générale reste affichée en
+petit dans l'en-tête quand le moteur a pu la calculer.
+
+Deux emplacements, réglables dans le popup (`todayPlacement`) :
+
+| Emplacement | Comportement |
+| --- | --- |
+| `home` (défaut) | sur la page d'accueil, le contenu principal est masqué et remplacé par la vue |
+| `panel` | la vue vit dans le tiroir École Directe Plus+, sous une section « Aujourd'hui », avec un bouton rapide « Auj. » pour l'ouvrir depuis n'importe quel écran ; la page reste intacte |
+
+En mode `home`, le contenu d'origine n'est **jamais supprimé** : il est repéré
+par `findNativeMain()` (balise `<main>`, `#mainContent`, conteneur d'accueil…),
+marqué `data-edp-native-main` puis masqué par `styles/features/today.css`. Au
+démontage (changement d'écran, module décoché, passage en mode panneau),
+l'attribut est retiré et la page redevient intacte. Si aucun conteneur crédible
+n'est trouvé, rien n'est masqué du tout.
+
+Données, toutes lues sur la page :
+
+| Carte | Source |
+| --- | --- |
+| Cours du jour | `timetableRows()` (horaire, salle, cours annulé) |
+| À rendre aujourd'hui ou demain | `homeworkRows()` (échéance à J ou J+1, retards, état « fait ») |
+| Dernières notes | notes normalisées du dernier relevé des tableaux |
+| Absences / retards | `absences()` (type, date, durée, justification) |
+| Moyenne | moteur de calcul local (`data.general.average20`), masquée si aucune note n'est lisible |
+
+Les devoirs sans date ne peuvent pas être situés : ils ne sont pas listés mais
+comptés sous la grille, avec un renvoi vers le cahier de textes. La lecture de
+l'accueil est groupée dans `SELECTORS.homeRoots` et `SELECTORS.absenceRoots` :
+c'est là qu'on ajuste si la vue ne s'affiche pas ou si une carte reste vide. La
+détection de l'écran repose sur l'URL (`accueil`, `dashboard`, `home`) et sur le
+conteneur d'`accueil`. En cas de mauvais remplacement, décocher « Vue
+« Aujourd'hui » » dans le popup suffit à revenir à la page d'origine.
+
 ## Le popup
 
 Le popup est volontairement court, parce qu'un popup se consulte en dix
@@ -337,7 +519,7 @@ secondes :
   en pastilles, la dernière note et le cours en cours sur une ligne ;
 - **actions** — « Simuler une note » ouvre le simulateur dans la page (le popup
   n'a pas accès à son DOM, il envoie un message au content script) ;
-  « Paramètres » fait défiler jusqu'à la carte de réglages du popup.
+  « Paramètres » ouvre le panneau de paramètres avancés du popup.
 
 Le popup ne calcule **rien** : il lit le résumé écrit par le content script via
 le background. Deux moteurs de calcul donneraient deux moyennes différentes à

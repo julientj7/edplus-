@@ -91,7 +91,8 @@
   "action": {
     "default_title": "École Directe Plus+",
     /* Page affichée au clic sur l'icône : moyenne, dernière note, cours suivant,
-       devoirs, et les réglages rapides. */
+       devoirs, les réglages rapides et le panneau de paramètres avancés
+       (apparence, densité, modules, masquage de blocs du site). */
     "default_popup": "popup/popup.html",
     /* Icônes du bouton lui-même : 16 et 32 suffisent, c'est la seule paire
        demandée pour ce contexte. */
@@ -164,7 +165,12 @@
     {
       "resources": [
         "styles/base.css",
+        "styles/components/agenda.css",
+        "styles/components/charts.css",
+        "styles/components/today.css",
+        "styles/components/grades.css",
         "styles/components/panel.css",
+        "styles/components/sidebar.css",
         "styles/components/simulator.css"
       ],
       "matches": ["*://*.ecoledirecte.com/*"]
@@ -207,6 +213,7 @@
         "shared/constants.js",
         "shared/utils.js",
         "shared/settings.js",
+        "shared/theme-presets.js",
         "content/core/dom.js",
         "content/core/messaging.js",
         /* Le routeur onMessage du content script vit dans messaging.js, juste
@@ -222,13 +229,32 @@
         "content/data/source-api.js",
         "content/data/adapter.js",
         "content/features/averages.js",
+        /* Séries chronologiques des graphiques (moyenne générale et moyennes
+           par matière). Code PUR, sans DOM : il est vérifié hors navigateur
+           par scripts/self-check.mjs, comme le moteur de calcul. */
+        "content/features/progress.js",
         "content/features/theme.js",
         "content/features/dark-mode.js",
         "content/features/theme-toggle.js",
+        "content/features/sidebar.js",
         "content/features/grades.js",
+        /* Graphiques d'évolution : courbes SVG dessinées à la main (aucune
+           librairie, donc aucune dépendance à auditer ni script distant, ce
+           que le CSP de MV3 interdirait de toute façon). Ils s'insèrent après
+           le dernier tableau de notes et se masquent d'un bouton. */
+        "content/features/charts.js",
         "content/features/simulator.js",
         "content/features/timetable.js",
         "content/features/homework.js",
+        /* Vue « Aujourd'hui » : cours du jour, devoirs à rendre aujourd'hui ou
+           demain, dernières notes, absences et retards. Elle remplace le
+           contenu principal de l'accueil ou vit dans le panneau, selon le
+           réglage todayPlacement. */
+        "content/features/today.js",
+        /* Nettoyage de la page : masque les blocs d'origine cochés dans les
+           paramètres avancés (encarts, actualités, aides, pied de page).
+           Ne supprime rien : pose `data-edp-hidden`, que cleanup.css masque. */
+        "content/features/cleanup.js",
         "content/ui/components.js",
         "content/ui/panel.js",
         "content/main.js"
@@ -241,17 +267,24 @@
            base.css    → primitives d'interface + position de l'hôte du panneau.
                          Également réadopté DANS le shadow root par panel.js ;
            dark.css    → surcharges du site en mode sombre (partie fragile) ;
-           features/*  → mise en forme ciblée : lisibilité du tableau de notes,
-                         surlignage du cours en cours, marquage des devoirs.
+           features/*  → mise en forme ciblée : masquage des tableaux de notes
+                         remplacés par la refonte, surlignage du cours en cours,
+                         marquage des devoirs.
          Les styles du tiroir (styles/components/panel.css) ne sont PAS ici :
          ils sont chargés dans le shadow root, où ceux de la page n'entrent pas. */
       "css": [
         "styles/tokens.css",
         "styles/base.css",
         "styles/dark.css",
+        /* Masque les tableaux de notes marqués par grades.js (relevé refondu). */
         "styles/features/grades.css",
         "styles/features/timetable.css",
-        "styles/features/homework.css"
+        "styles/features/homework.css",
+        /* Masque le contenu principal marqué par today.js (jamais supprimé). */
+        "styles/features/today.css",
+        "styles/features/sidebar.css",
+        /* Masque les blocs marqués par cleanup.js (jamais supprimés). */
+        "styles/features/cleanup.css"
       ]
     }
   ]

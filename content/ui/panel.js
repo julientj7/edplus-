@@ -29,10 +29,13 @@
   /**
    * Feuille de style du shadow root : adoptée si possible, sinon <style>.
    *
-   * On charge DEUX fichiers : base.css (les primitives : .edp-stat, .edp-table,
-   * .edp-button…) et panel.css (la pastille et le tiroir). base.css est aussi
-   * injecté dans la page pour la bande de résumé — mais à l'intérieur du shadow
-   * root, il faut le réadopter, car les CSS de la page n'y entrent pas.
+   * On charge CINQ fichiers : base.css (les primitives : .edp-stat,
+   * .edp-table, .edp-button…), panel.css (la pastille et le tiroir),
+   * agenda.css (agenda de la journée et liste de devoirs), simulator.css et
+   * today.css (vue « Aujourd’hui » en mode panneau).
+   * base.css est aussi injecté dans la page pour la bande de résumé — mais à
+   * l'intérieur du shadow root, il faut le réadopter, car les CSS de la page
+   * n'y entrent pas.
    */
   async function buildStyle(shadow) {
     let css = '';
@@ -40,7 +43,9 @@
       const paths = [
         'styles/base.css',
         'styles/components/panel.css',
-        'styles/components/simulator.css'
+        'styles/components/agenda.css',
+        'styles/components/simulator.css',
+        'styles/components/today.css'
       ];
       const parts = await Promise.all(
         paths.map(async (path) => {

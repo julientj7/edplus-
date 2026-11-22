@@ -19,6 +19,8 @@
   const { $, $$, onDomChange } = EDP.dom;
 
   const URL_HINTS = [
+    // L'accueil d'abord : le tableau de bord remplace tout le contenu principal.
+    [EDP.ROUTES.HOME, /accueil|tableau[-_ ]?de[-_ ]?bord|dashboard|\bhome\b/i],
     [EDP.ROUTES.NOTES, /notes?|evaluations?/i],
     [EDP.ROUTES.TIMETABLE, /emploi[-_ ]?du[-_ ]?temps|edt|timetable/i],
     [EDP.ROUTES.HOMEWORK, /cahier[-_ ]?(de[-_ ]?)?textes?|devoirs?|homework|agenda/i]

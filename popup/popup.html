@@ -164,7 +164,11 @@
       <p class="edp-popup__toast" id="toast" role="status" hidden></p>
 
       <!-- ================================================================
-           PARAMÈTRES — la cible du bouton « Paramètres »
+           RÉGLAGES RAPIDES — la cible du bouton « Paramètres »
+           ----------------------------------------------------------------
+           Volontairement courts : l'activation générale et la pastille. Tout
+           le reste (apparence, densité, modules, masquage de blocs) vit dans
+           le panneau avancé, pour ne pas noyer la moyenne sous dix réglages.
            ================================================================ -->
       <section class="edp-card" id="settings" aria-labelledby="settings-title">
         <div class="edp-card__header">
@@ -180,44 +184,176 @@
             <span>Extension activée</span>
           </label>
 
+          <label class="edp-switch">
+            <input type="checkbox" id="badge" /><span>Pastille « nouvelle note »</span>
+          </label>
+
+          <button type="button" class="edp-button edp-button--primary edp-popup__cta" id="advanced-open">
+            Paramètres avancés
+          </button>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           PANNEAU DE PARAMÈTRES AVANCÉS
+           ----------------------------------------------------------------
+           Seconde vue du popup, ouverte par « Paramètres avancés » ou par
+           l'action du même nom. Elle remplace le contenu principal : le
+           popup est étroit, et ces réglages méritent tout l'espace.
+
+           Chaque changement part IMMÉDIATEMENT dans les réglages partagés ;
+           les onglets École Directe ouverts suivent par storage.onChanged et
+           appliquent sans rechargement (thème, densité, modules, masquage).
+           ================================================================ -->
+      <section class="edp-advanced" id="advanced" aria-labelledby="advanced-title" hidden>
+        <div class="edp-advanced__head">
+          <button type="button" class="edp-advanced__back" id="advanced-back">
+            <span aria-hidden="true">←</span>
+            <span>Retour</span>
+          </button>
+          <h2 class="edp-advanced__title" id="advanced-title">Paramètres avancés</h2>
+        </div>
+
+        <!-- ============================================================
+             APPARENCE — mode, préréglage (ou thème personnalisé), couleurs,
+             formes, police
+             ------------------------------------------------------------
+             Le popup ne contient AUCUNE couleur : les palettes viennent de
+             shared/theme-presets.js, sont écrites dans les réglages partagés
+             (themePreset, themeOverrides, theme) puis appliquées par
+             content/features/theme.js, le même module que sur la page.
+             Les boutons de préréglage sont construits par popup.js.
+             ============================================================ -->
+        <fieldset class="edp-fieldset" id="appearance">
+          <legend class="edp-field__label">Apparence</legend>
+
           <label class="edp-field">
-            <span class="edp-field__label">Thème</span>
+            <span class="edp-field__label">Mode</span>
             <select class="edp-input" id="theme">
-              <option value="auto">Suivre le système</option>
+              <option value="auto">Automatique (système)</option>
               <option value="light">Clair</option>
               <option value="dark">Sombre</option>
             </select>
           </label>
 
-          <fieldset class="edp-fieldset">
-            <legend class="edp-field__label">Modules</legend>
-            <label class="edp-switch">
-              <input type="checkbox" id="module-grades" /><span>Moyennes calculées</span>
-            </label>
-            <label class="edp-switch">
-              <input type="checkbox" id="module-simulator" /><span>Simulateur de notes</span>
-            </label>
-            <label class="edp-switch">
-              <input type="checkbox" id="module-timetable" /><span>Emploi du temps</span>
-            </label>
-            <label class="edp-switch">
-              <input type="checkbox" id="module-homework" /><span>Cahier de textes</span>
-            </label>
-            <label class="edp-switch">
-              <input type="checkbox" id="module-theme-toggle" /><span>Bouton mode sombre</span>
-            </label>
-            <label class="edp-switch">
-              <input type="checkbox" id="module-average-hud" /><span>Moyenne toujours visible</span>
-            </label>
-            <label class="edp-switch">
-              <input type="checkbox" id="badge" /><span>Pastille « nouvelle note »</span>
-            </label>
-          </fieldset>
+          <div class="edp-field">
+            <span class="edp-field__label" id="presets-label">Thème</span>
+            <div
+              class="edp-presets"
+              id="presets"
+              role="radiogroup"
+              aria-labelledby="presets-label"
+            ></div>
+          </div>
 
-          <button type="button" class="edp-button edp-button--ghost" id="reset">
-            Réinitialiser les réglages
+          <div class="edp-colors" id="colors">
+            <label class="edp-color">
+              <span>Accent</span>
+              <input type="color" id="color-accent" />
+            </label>
+            <label class="edp-color">
+              <span>Fond</span>
+              <input type="color" id="color-bg" />
+            </label>
+            <label class="edp-color">
+              <span>Texte</span>
+              <input type="color" id="color-text" />
+            </label>
+            <label class="edp-color">
+              <span>Cartes</span>
+              <input type="color" id="color-surface" />
+            </label>
+          </div>
+
+          <label class="edp-field">
+            <span class="edp-field__label">Rayon des bordures</span>
+            <input class="edp-range" type="range" id="radius" min="0" max="24" step="1" />
+            <span class="edp-field__hint" id="radius-value">10 px</span>
+          </label>
+
+          <label class="edp-field">
+            <span class="edp-field__label">Police</span>
+            <select class="edp-input" id="font"></select>
+          </label>
+
+          <button type="button" class="edp-button edp-button--ghost" id="theme-reset">
+            Revenir au préréglage
           </button>
-        </div>
+        </fieldset>
+
+        <!-- DENSITÉ — la liste vient de EDP.DENSITIES, une seule source pour le
+             popup et la page. Le changement est appliqué en direct. -->
+        <fieldset class="edp-fieldset">
+          <legend class="edp-field__label">Densité de l’interface</legend>
+          <label class="edp-field">
+            <span class="edp-field__label">Espacement</span>
+            <select class="edp-input" id="density"></select>
+          </label>
+          <p class="edp-field__hint">
+            S’applique au panneau, aux écrans refondus et à ce popup.
+          </p>
+        </fieldset>
+
+        <!-- MODULES — chaque grande modification d'interface, activable seule.
+             Les clés correspondent à EDP.DEFAULTS.modules. -->
+        <fieldset class="edp-fieldset">
+          <legend class="edp-field__label">Modifications d’interface</legend>
+          <label class="edp-switch">
+            <input type="checkbox" id="module-grades" /><span>Relevé de notes refondu</span>
+          </label>
+          <label class="edp-switch">
+            <input type="checkbox" id="module-sidebar" /><span>Barre latérale moderne</span>
+          </label>
+          <label class="edp-switch">
+            <input type="checkbox" id="module-today" /><span>Vue « Aujourd’hui »</span>
+          </label>
+          <label class="edp-switch">
+            <input type="checkbox" id="module-simulator" /><span>Simulateur de notes</span>
+          </label>
+          <label class="edp-switch">
+            <input type="checkbox" id="module-timetable" /><span>Emploi du temps</span>
+          </label>
+          <label class="edp-switch">
+            <input type="checkbox" id="module-homework" /><span>Cahier de textes</span>
+          </label>
+          <label class="edp-switch">
+            <input type="checkbox" id="module-theme-toggle" /><span>Bouton mode sombre</span>
+          </label>
+          <label class="edp-switch">
+            <input type="checkbox" id="module-average-hud" /><span>Moyenne toujours visible</span>
+          </label>
+        </fieldset>
+
+        <!-- VUE « AUJOURD'HUI » — son emplacement : remplacement de l'accueil ou
+             panneau dédié. Le choix est relu par la page via storage.onChanged. -->
+        <fieldset class="edp-fieldset">
+          <legend class="edp-field__label">Vue « Aujourd’hui »</legend>
+          <label class="edp-field">
+            <span class="edp-field__label">Emplacement</span>
+            <select class="edp-input" id="today-placement">
+              <option value="home">Remplacer la page d’accueil</option>
+              <option value="panel">Panneau dédié (bouton « Auj. »)</option>
+            </select>
+          </label>
+          <p class="edp-field__hint">
+            Le panneau est accessible depuis n’importe quel écran, sans remplacer la page.
+          </p>
+        </fieldset>
+
+        <!-- NETTOYAGE — les cases sont construites par popup.js à partir de
+             EDP.HIDE_TARGETS ; les sélecteurs, eux, vivent dans
+             content/data/source-dom.js. -->
+        <fieldset class="edp-fieldset">
+          <legend class="edp-field__label">Masquer des éléments du site</legend>
+          <div class="edp-choices" id="hide-targets"></div>
+          <p class="edp-field__hint">
+            Rien n’est supprimé : décocher restaure le bloc immédiatement.
+          </p>
+        </fieldset>
+
+        <button type="button" class="edp-button edp-button--ghost" id="reset">
+          Réinitialiser les réglages
+        </button>
       </section>
 
       <p class="edp-popup__privacy">
@@ -232,6 +368,7 @@
     <script src="../shared/constants.js"></script>
     <script src="../shared/utils.js"></script>
     <script src="../shared/settings.js"></script>
+    <script src="../shared/theme-presets.js"></script>
     <script src="../content/features/theme.js"></script>
     <script src="popup.js"></script>
   </body>

@@ -1,0 +1,224 @@
+/* ==========================================================================
+   styles/components/agenda.css — agenda vertical et tâches du panneau
+   --------------------------------------------------------------------------
+   Chargé UNIQUEMENT dans le shadow root du panneau (voir content/ui/panel.js),
+   en plus de base.css, panel.css et simulator.css. Ces classes ne servent
+   qu'aux cartes « Emploi du temps » (.edp-agenda) et « Cahier de textes »
+   (.edp-task, .edp-chip, .edp-meter).
+
+   Aucune couleur en dur : tout vient de tokens.css, donc le thème sombre
+   s'applique ici sans règle supplémentaire.
+   ========================================================================== */
+
+/* --- Agenda de la journée --------------------------------------------- */
+.edp-agenda {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edp-agenda__item {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--edp-space-2);
+  padding: 5px 6px;
+  border-left: 2px solid transparent;
+  border-radius: var(--edp-radius-sm);
+  font-size: 12px;
+}
+
+/* Cours passé : présent pour situer la journée, mais sans attirer l'œil. */
+.edp-agenda__item[data-state="past"] {
+  opacity: 0.5;
+}
+
+.edp-agenda__item[data-state="now"] {
+  background: var(--edp-accent-soft);
+  border-left-color: var(--edp-accent);
+}
+
+.edp-agenda__item[data-state="next"] {
+  border-left-color: color-mix(in srgb, var(--edp-accent) 45%, transparent);
+}
+
+.edp-agenda__item[data-state="cancelled"] {
+  color: var(--edp-muted);
+  text-decoration: line-through;
+}
+
+.edp-agenda__time {
+  font-family: var(--edp-font-mono);
+  font-size: 10.5px;
+  color: var(--edp-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.edp-agenda__item[data-state="now"] .edp-agenda__time {
+  color: var(--edp-accent);
+  font-weight: 600;
+}
+
+.edp-agenda__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.edp-agenda__subject {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edp-agenda__room {
+  overflow: hidden;
+  color: var(--edp-muted);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Barre de progression segmentée ----------------------------------- */
+/* La LARGEUR de chaque segment est une donnée (flex-grow posé en ligne par le
+   script) ; l'apparence de chaque état reste ici. */
+.edp-meter {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--edp-surface-2);
+  overflow: hidden;
+}
+
+.edp-meter__seg {
+  flex: 1 1 0;
+  min-width: 3px;
+}
+
+.edp-meter__seg[data-tone="done"] {
+  background: var(--edp-positive);
+}
+
+.edp-meter__seg[data-tone="late"] {
+  background: var(--edp-negative);
+}
+
+.edp-meter__seg[data-tone="today"] {
+  background: var(--edp-warning);
+}
+
+.edp-meter__seg[data-tone="soon"] {
+  background: color-mix(in srgb, var(--edp-warning) 55%, var(--edp-surface-2));
+}
+
+.edp-meter__seg[data-tone="later"] {
+  background: var(--edp-line);
+}
+
+/* --- Groupes de devoirs ----------------------------------------------- */
+.edp-group + .edp-group {
+  margin-top: var(--edp-space-2);
+}
+
+/* --- Une tâche -------------------------------------------------------- */
+.edp-task {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--edp-space-2);
+  padding: 5px 4px;
+}
+
+.edp-task + .edp-task {
+  border-top: 1px solid var(--edp-surface-2);
+}
+
+/* Pastille d'état : cercle vide, coché, ou coloré. La couleur ne porte jamais
+   l'information seule — le texte de l'échéance est dans .edp-chip. */
+.edp-task__mark {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border: 1.5px solid var(--edp-line);
+  border-radius: 50%;
+  color: transparent;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.edp-task[data-tone="done"] .edp-task__mark {
+  border-color: var(--edp-positive);
+  background: var(--edp-positive);
+  color: var(--edp-bg);
+}
+
+.edp-task[data-tone="late"] .edp-task__mark {
+  border-color: var(--edp-negative);
+}
+
+.edp-task[data-tone="today"] .edp-task__mark {
+  border-color: var(--edp-warning);
+}
+
+.edp-task__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.edp-task__subject {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.edp-task__label {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--edp-muted);
+  font-size: 11px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.edp-task[data-tone="done"] .edp-task__subject,
+.edp-task[data-tone="done"] .edp-task__label {
+  color: var(--edp-muted);
+  text-decoration: line-through;
+}
+
+/* --- Pastille d'échéance ---------------------------------------------- */
+.edp-chip {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--edp-surface-2);
+  color: var(--edp-muted);
+  font-size: 9.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.edp-chip[data-tone="done"] {
+  background: var(--edp-positive);
+  color: var(--edp-bg);
+}
+
+.edp-chip[data-tone="late"] {
+  background: var(--edp-negative);
+  color: var(--edp-bg);
+}
+
+.edp-chip[data-tone="today"] {
+  background: var(--edp-warning);
+  color: var(--edp-bg);
+}
+
+.edp-chip[data-tone="soon"] {
+  color: var(--edp-warning);
+}

@@ -52,7 +52,12 @@
     {
       "resources": [
         "styles/base.css",
+        "styles/components/agenda.css",
+        "styles/components/charts.css",
+        "styles/components/today.css",
+        "styles/components/grades.css",
         "styles/components/panel.css",
+        "styles/components/sidebar.css",
         "styles/components/simulator.css"
       ],
       "matches": ["*://*.ecoledirecte.com/*"]
@@ -68,6 +73,7 @@
         "shared/constants.js",
         "shared/utils.js",
         "shared/settings.js",
+        "shared/theme-presets.js",
         "content/core/dom.js",
         "content/core/messaging.js",
         "content/core/router.js",
@@ -77,13 +83,18 @@
         "content/data/source-api.js",
         "content/data/adapter.js",
         "content/features/averages.js",
+        "content/features/progress.js",
         "content/features/theme.js",
         "content/features/dark-mode.js",
         "content/features/theme-toggle.js",
+        "content/features/sidebar.js",
         "content/features/grades.js",
+        "content/features/charts.js",
         "content/features/simulator.js",
         "content/features/timetable.js",
         "content/features/homework.js",
+        "content/features/today.js",
+        "content/features/cleanup.js",
         "content/ui/components.js",
         "content/ui/panel.js",
         "content/main.js"
@@ -94,7 +105,10 @@
         "styles/dark.css",
         "styles/features/grades.css",
         "styles/features/timetable.css",
-        "styles/features/homework.css"
+        "styles/features/homework.css",
+        "styles/features/today.css",
+        "styles/features/sidebar.css",
+        "styles/features/cleanup.css"
       ]
     }
   ]

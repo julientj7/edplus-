@@ -1,0 +1,454 @@
+/* ==========================================================================
+   styles/components/today.css — vue « Aujourd’hui » (shadow root)
+   --------------------------------------------------------------------------
+   Chargé à DEUX endroits :
+     - dans le shadow root de #edp-today-host (mode « accueil ») ;
+     - dans celui du panneau (mode « panneau », voir content/ui/panel.js).
+   C’est pourquoi il n’y a AUCUNE règle `:host` : dans le panneau, `:host` est
+   l’hôte du panneau lui-même, et un `all: initial` y effacerait sa mise en
+   page. Tout est donc porté par `.edp-today`.
+
+   Les variables --edp-* sont héritées depuis <html> (elles traversent les
+   frontières d’ombre) : thème clair/sombre, accent, densité et rayon suivent
+   les réglages sans une règle de plus. Aucune couleur en dur : uniquement
+   var(--edp-*) et color-mix().
+
+   Le masquage du contenu d’origine est dans styles/features/today.css.
+   ========================================================================== */
+
+.edp-today {
+  box-sizing: border-box;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: var(--edp-space-6) var(--edp-space-5);
+  color: var(--edp-text);
+  font-family: var(--edp-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.edp-today *,
+.edp-today *::before,
+.edp-today *::after {
+  box-sizing: border-box;
+}
+
+/* --- En-tête ------------------------------------------------------------ */
+.edp-today__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--edp-space-4);
+  margin-bottom: var(--edp-space-4);
+}
+
+.edp-today__head-main {
+  min-width: 0;
+}
+
+.edp-today__eyebrow {
+  margin: 0 0 6px;
+  color: var(--edp-muted);
+  font: 700 11px/1.2 var(--edp-font);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.edp-today__title {
+  margin: 0;
+  color: var(--edp-text);
+  font-family: var(--edp-font);
+  font-size: clamp(28px, 3.4vw, 36px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.edp-today__date {
+  margin: 6px 0 0;
+  color: var(--edp-muted);
+  font: 400 14px/1.4 var(--edp-font);
+}
+
+.edp-today__aside {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--edp-space-2);
+}
+
+.edp-today__average {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 5px 11px;
+  border: 1px solid var(--edp-border);
+  border-radius: 999px;
+  background: var(--edp-surface);
+}
+
+.edp-today__average-label {
+  margin-right: 4px;
+  color: var(--edp-muted);
+  font: 650 11px/1.3 var(--edp-font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.edp-today__average-value {
+  color: var(--edp-text);
+  font: 750 14px/1.2 var(--edp-font);
+  font-variant-numeric: tabular-nums;
+}
+
+.edp-today__average-scale {
+  color: var(--edp-muted);
+  font: 600 11px/1.2 var(--edp-font);
+}
+
+/* Le ton colore le chiffre, mais la valeur reste lisible sans couleur. */
+.edp-today__average[data-tone="positive"] .edp-today__average-value {
+  color: var(--edp-positive);
+}
+
+.edp-today__average[data-tone="negative"] .edp-today__average-value {
+  color: var(--edp-negative);
+}
+
+.edp-today__period {
+  padding: 5px 11px;
+  border: 1px solid var(--edp-border);
+  border-radius: 999px;
+  background: var(--edp-surface);
+  color: var(--edp-muted);
+  font: 650 11.5px/1.3 var(--edp-font);
+}
+
+/* --- Bandeau « en cours / prochain cours » ------------------------------ */
+.edp-today__now {
+  display: flex;
+  align-items: center;
+  gap: var(--edp-space-3);
+  padding: var(--edp-space-3) var(--edp-space-4);
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-lg);
+  background: var(--edp-surface);
+  box-shadow: var(--edp-shadow-sm);
+}
+
+.edp-today__now[data-state="now"] {
+  border-color: transparent;
+  background: var(--edp-accent-soft);
+}
+
+.edp-today__now-label {
+  flex: none;
+  color: var(--edp-muted);
+  font: 700 10.5px/1.2 var(--edp-font);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.edp-today__now[data-state="now"] .edp-today__now-label {
+  color: var(--edp-accent);
+}
+
+.edp-today__now-text {
+  overflow: hidden;
+  color: var(--edp-text);
+  font: 650 13.5px/1.35 var(--edp-font);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edp-today__now-time {
+  flex: none;
+  margin-left: auto;
+  color: var(--edp-muted);
+  font: 600 12px/1.4 var(--edp-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Grille de cartes --------------------------------------------------- */
+.edp-today__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--edp-space-4);
+  margin-top: var(--edp-space-4);
+}
+
+.edp-today__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--edp-space-3);
+  padding: var(--edp-space-5);
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-lg);
+  background: var(--edp-surface);
+  box-shadow: var(--edp-shadow-sm);
+}
+
+.edp-today__card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--edp-space-3);
+}
+
+.edp-today__card-title {
+  margin: 0;
+  color: var(--edp-text);
+  font: 750 15px/1.3 var(--edp-font);
+  letter-spacing: -0.01em;
+}
+
+.edp-today__count {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--edp-surface-2);
+  color: var(--edp-muted);
+  font: 700 11px/1.4 var(--edp-font);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Listes ------------------------------------------------------------- */
+.edp-today__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edp-today__item {
+  display: flex;
+  align-items: center;
+  gap: var(--edp-space-3);
+  padding: 11px 0;
+  border-top: 1px solid var(--edp-border);
+}
+
+.edp-today__item:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.edp-today__item-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.edp-today__item-title {
+  overflow: hidden;
+  color: var(--edp-text);
+  font: 650 13.5px/1.35 var(--edp-font);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edp-today__item-sub {
+  overflow: hidden;
+  color: var(--edp-muted);
+  font: 400 12px/1.4 var(--edp-font);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Cours -------------------------------------------------------------- */
+.edp-today__slot-time {
+  flex: none;
+  width: 96px;
+  color: var(--edp-muted);
+  font: 600 12px/1.4 var(--edp-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.edp-today__slot[data-state="now"] .edp-today__slot-time,
+.edp-today__slot[data-state="now"] .edp-today__item-title {
+  color: var(--edp-accent);
+}
+
+.edp-today__slot[data-state="past"] {
+  opacity: 0.62;
+}
+
+.edp-today__slot[data-state="cancelled"] .edp-today__item-title {
+  text-decoration: line-through;
+}
+
+/* --- Notes -------------------------------------------------------------- */
+.edp-today__grade-value {
+  flex: none;
+  padding: 5px 9px;
+  border-radius: var(--edp-radius-sm);
+  background: var(--edp-surface-2);
+  color: var(--edp-text);
+  font: 750 13px/1.2 var(--edp-font);
+  font-variant-numeric: tabular-nums;
+}
+
+.edp-today__grade-value[data-tone="positive"] {
+  color: var(--edp-grade-high);
+}
+
+.edp-today__grade-value[data-tone="negative"] {
+  color: var(--edp-grade-low);
+}
+
+/* --- Pastilles ---------------------------------------------------------- */
+.edp-today__chip {
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid var(--edp-border);
+  border-radius: 999px;
+  background: var(--edp-surface-2);
+  color: var(--edp-muted);
+  font: 650 11px/1.35 var(--edp-font);
+  white-space: nowrap;
+}
+
+.edp-today__chip[data-tone="accent"] {
+  border-color: transparent;
+  background: var(--edp-accent-soft);
+  color: var(--edp-accent);
+}
+
+.edp-today__chip[data-tone="positive"] {
+  border-color: transparent;
+  color: var(--edp-positive);
+}
+
+.edp-today__chip[data-tone="negative"] {
+  border-color: transparent;
+  color: var(--edp-negative);
+}
+
+.edp-today__chip[data-tone="warning"] {
+  border-color: transparent;
+  color: var(--edp-warning);
+}
+
+/* --- États vides et notes de bas de page -------------------------------- */
+.edp-today__empty {
+  margin: 0;
+  padding: var(--edp-space-2) 0;
+  color: var(--edp-muted);
+  font: 400 13px/1.5 var(--edp-font);
+}
+
+.edp-today__note {
+  margin: var(--edp-space-4) 0 0;
+  color: var(--edp-muted);
+  font: 400 11.5px/1.5 var(--edp-font);
+}
+
+/* ==========================================================================
+   Mode « panneau »
+   --------------------------------------------------------------------------
+   Le tiroir est étroit (388 px) et fournit déjà le titre de la section : on
+   retire l’en-tête redondant, on passe sur une colonne et on resserre.
+   ========================================================================== */
+.edp-today--panel {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.edp-today--panel .edp-today__head {
+  margin-bottom: var(--edp-space-3);
+}
+
+.edp-today--panel .edp-today__eyebrow,
+.edp-today--panel .edp-today__title {
+  display: none;
+}
+
+.edp-today--panel .edp-today__date {
+  margin: 0;
+  font-size: 13px;
+}
+
+.edp-today--panel .edp-today__aside {
+  gap: var(--edp-space-1);
+}
+
+.edp-today--panel .edp-today__now {
+  flex-wrap: wrap;
+  gap: var(--edp-space-2);
+  padding: 10px 12px;
+}
+
+.edp-today--panel .edp-today__now-time {
+  margin-left: 0;
+}
+
+.edp-today--panel .edp-today__grid {
+  grid-template-columns: 1fr;
+  gap: var(--edp-space-3);
+  margin-top: var(--edp-space-3);
+}
+
+.edp-today--panel .edp-today__card {
+  padding: var(--edp-space-4);
+}
+
+.edp-today--panel .edp-today__slot-time {
+  width: 82px;
+}
+
+.edp-today--panel .edp-today__note {
+  margin-top: var(--edp-space-3);
+}
+
+/* Bouton rapide du panneau : libellé court dans une pastille ronde. */
+.edp-quick--today .edp-quick__icon--text {
+  width: auto;
+  height: auto;
+  font: 750 10px/1 var(--edp-font);
+  letter-spacing: 0.01em;
+}
+
+/* --- Petits écrans ------------------------------------------------------ */
+@media (max-width: 760px) {
+  .edp-today {
+    padding: var(--edp-space-4) var(--edp-space-3);
+  }
+
+  .edp-today__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--edp-space-2);
+  }
+
+  .edp-today__aside {
+    justify-content: flex-start;
+  }
+
+  .edp-today__now {
+    flex-wrap: wrap;
+  }
+
+  .edp-today__now-time {
+    margin-left: 0;
+  }
+
+  .edp-today__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .edp-today__slot-time {
+    width: 82px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edp-today__card,
+  .edp-today__now {
+    box-shadow: none;
+  }
+}

@@ -1,0 +1,48 @@
+/* ==========================================================================
+   styles/features/sidebar.css — remplacement visuel de la barre latérale
+   --------------------------------------------------------------------------
+   Injecté dans la PAGE (content_scripts.css). Deux responsabilités seulement :
+
+     1. masquer la barre d'origine, sans la supprimer du DOM — c'est ce qui
+        permet à content/features/sidebar.js de rejouer les clics sur les liens
+        réels et donc de ne pas casser la navigation ;
+     2. exposer les largeurs du rail, pour que le décalage du contenu et le rail
+        (dans son shadow root) utilisent la même valeur.
+
+   ─────────────────────────────────────────────────────────────────────────
+   PARTIE FRAGILE, comme dark.css : les sélecteurs visent le balisage du site.
+   On ne cible QUE l'élément marqué par le script (`data-edp-native-nav`), donc
+   une erreur de détection ne peut pas masquer autre chose que ce qui a été
+   identifié comme la navigation.
+   ─────────────────────────────────────────────────────────────────────────
+   ========================================================================== */
+
+html[data-edp-sidebar="1"] {
+  --edp-rail-width: 212px;
+  --edp-rail-width-collapsed: 68px;
+}
+
+html[data-edp-sidebar="1"] [data-edp-native-nav="1"] {
+  display: none !important;
+}
+
+/* Décalage du contenu : posé par le script UNIQUEMENT quand le contenu
+   passerait sous le rail (voir le commentaire dans sidebar.js). Dans une mise
+   en page où la barre occupait une place dans le flux, sa disparition libère
+   déjà la place nécessaire : rien à décaler. */
+html[data-edp-sidebar-offset="1"] body {
+  margin-left: var(--edp-rail-width, 212px) !important;
+}
+
+/* Rail réduit : le décalage suit la largeur du mode icônes seules. */
+html[data-edp-sidebar-offset="1"][data-edp-sidebar-collapsed="1"] body {
+  margin-left: var(--edp-rail-width-collapsed, 68px) !important;
+}
+
+/* Sur un écran étroit, le rail est réduit d'office (même règle que dans
+   styles/components/sidebar.css) : le décalage doit suivre. */
+@media (max-width: 820px) {
+  html[data-edp-sidebar="1"] {
+    --edp-rail-width: 68px;
+  }
+}

@@ -7,6 +7,8 @@
  *
  *   detect(ctx)  -> la fonctionnalité a-t-elle quelque chose à faire ici ?
  *   mount(ctx)   -> construit son interface, renvoie éventuellement un handle
+ *   update(ctx)  -> optionnel, appelé à chaque sync tant que le module est monté
+ *                   (réglages « vivants » : densité, masquage de blocs…)
  *   settingKey   -> la clé de EDP.DEFAULTS.modules qui l'active/désactive
  *
  * Pourquoi ce niveau d'indirection : le site recharge ses écrans en place. Sans
@@ -38,6 +40,7 @@
       settingKey: definition.settingKey || null,
       detect: definition.detect || (() => true),
       mount: definition.mount || (() => null),
+      update: definition.update || null,
       unmount: definition.unmount || null,
       snapshot: definition.snapshot || null,
       mounted: false,
@@ -68,6 +71,17 @@
         } catch (error) {
           console.warn(`[ED+] detect() en échec pour ${feature.id} :`, error);
           shouldMount = false;
+        }
+      }
+
+      // Un module déjà monté peut avoir un état à rafraîchir sans être
+      // reconstruit : c'est ce qui permet à un réglage de s'appliquer en direct
+      // (masquage de blocs, densité…) sans faire clignoter l'interface.
+      if (feature.mounted && typeof feature.update === 'function') {
+        try {
+          feature.update(ctx);
+        } catch (error) {
+          console.warn(`[ED+] update() en échec pour ${feature.id} :`, error);
         }
       }
 

@@ -1,0 +1,26 @@
+/* ==========================================================================
+   styles/features/today.css — remplacement du contenu principal (accueil)
+   --------------------------------------------------------------------------
+   Injecté dans la PAGE (content_scripts.css). Une seule responsabilité :
+   masquer le contenu d’origine, SANS le supprimer du DOM — c’est ce qui permet
+   à content/features/today.js de le rendre tel quel au démontage.
+
+   On ne cible QUE l’élément que le script a lui-même identifié et marqué
+   (`data-edp-native-main`) : une erreur de détection ne peut donc pas masquer
+   autre chose que le bloc choisi, et décocher le module dans le popup suffit à
+   revenir à la page d’origine.
+
+   En mode « panneau », aucun attribut n’est posé : ces règles ne s’appliquent
+   donc jamais et la page reste intacte.
+   ========================================================================== */
+
+html[data-edp-today="1"] [data-edp-native-main="1"] {
+  display: none !important;
+}
+
+/* Hôte de la vue : un bloc normal dans le flux, à la place du contenu masqué.
+   `display: block` explicite car le shadow root est un enfant direct. */
+#edp-today-host {
+  display: block;
+  width: 100%;
+}

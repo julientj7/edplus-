@@ -24,6 +24,9 @@
   const nodes = {};
   let toastTimer = null;
 
+  /** Derniers réglages connus : sert à composer les surcharges de thème. */
+  let currentSettings = null;
+
   /** Envoie un message au background et renvoie la donnée utile (ou null). */
   async function request(type) {
     try {
@@ -107,6 +110,11 @@
     // Le sélecteur des réglages reflète la préférence (auto / clair / sombre),
     // qui n'est pas la même chose que la valeur effective ci-dessus.
     if (nodes.theme) nodes.theme.value = EDP.theme.current.preference;
+
+    // Les vignettes de préréglage montrent la palette du mode EFFECTIF : elles
+    // doivent donc être reconstruites quand le système bascule en sombre.
+    if (nodes.presets && EDP.themePresets) buildPresetChoices();
+    if (currentSettings) paintLookControls();
   }
 
   function wireTheme() {
@@ -118,15 +126,262 @@
       });
     });
 
-    // Le sélecteur « Suivre le système » reste le seul moyen de revenir en
-    // auto : le bouton, à deux états, force toujours clair ou sombre.
+    // Le sélecteur « Automatique » reste le seul moyen de revenir en auto : le
+    // bouton, à deux états, force toujours clair ou sombre.
     nodes.theme.addEventListener('change', () => {
-      EDP.theme.set(nodes.theme.value).catch((error) => {
+      saveLook({ theme: nodes.theme.value }).catch((error) => {
         console.warn('[ED+] thème non enregistré :', error);
       });
     });
 
     EDP.theme.onChange(paintTheme);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Apparence : préréglages, couleurs, formes, police
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Pastille de couleur d'une vignette de préréglage.
+   *
+   * C'est le seul endroit du popup qui pose une couleur en style inline, et
+   * c'est assumé : le rôle même d'une vignette est de montrer une palette
+   * arbitraire, qui n'existe pas encore dans tokens.css.
+   */
+  function swatchDot(color) {
+    const dot = document.createElement('span');
+    dot.className = 'edp-preset__dot';
+    dot.style.background = color;
+    return dot;
+  }
+
+  /** Construit les trois boutons de préréglage (un par thème prédéfini). */
+  function buildPresetChoices() {
+    nodes.presets.textContent = '';
+    EDP.themePresets.THEME_PRESETS.forEach((preset) => {
+      const palette = preset[EDP.theme.current.resolved] || preset.light;
+      const button = el(
+        'button',
+        {
+          type: 'button',
+          class: 'edp-preset',
+          role: 'radio',
+          'aria-checked': 'false',
+          'data-preset': preset.id,
+          title: preset.hint || preset.label
+        },
+        [
+          el('span', { class: 'edp-preset__swatch', 'aria-hidden': 'true' }, [
+            swatchDot(palette.accent),
+            swatchDot(palette.bg),
+            swatchDot(palette.text)
+          ]),
+          el('span', { class: 'edp-preset__label', text: preset.label })
+        ]
+      );
+      button.addEventListener('click', () => applyPreset(preset.id));
+      nodes.presets.appendChild(button);
+    });
+  }
+
+  function buildFontChoices() {
+    nodes.font.textContent = '';
+    EDP.themePresets.THEME_FONTS.forEach((font) => {
+      const option = document.createElement('option');
+      option.value = font.id;
+      option.textContent = font.label;
+      nodes.font.appendChild(option);
+    });
+  }
+
+  /** Remplit la liste des densités (source : EDP.DENSITIES). */
+  function buildDensityChoices() {
+    nodes.density.textContent = '';
+    (EDP.DENSITIES || []).forEach((density) => {
+      const option = document.createElement('option');
+      option.value = density.id;
+      option.textContent = density.label;
+      if (density.hint) option.title = density.hint;
+      nodes.density.appendChild(option);
+    });
+  }
+
+  /**
+   * Construit les cases « masquer des éléments du site ».
+   *
+   * Les libellés viennent de EDP.HIDE_TARGETS (shared/constants.js), les
+   * sélecteurs de content/data/source-dom.js : le popup n'a donc aucune
+   * connaissance du balisage d'École Directe.
+   */
+  function buildHideChoices() {
+    nodes.hideTargets.textContent = '';
+    nodes.hideInputs = {};
+
+    (EDP.HIDE_TARGETS || []).forEach((target) => {
+      const input = el('input', { type: 'checkbox', id: `hide-${target.id}` });
+      input.addEventListener('change', () => {
+        saveHiddenElements().catch((error) =>
+          console.warn('[ED+] masquage non enregistré :', error)
+        );
+      });
+
+      const label = el('label', { class: 'edp-choice', for: `hide-${target.id}` }, [
+        input,
+        el('span', { class: 'edp-choice__label' }, [
+          el('span', { text: target.label }),
+          target.hint ? el('span', { class: 'edp-choice__hint', text: target.hint }) : null
+        ])
+      ]);
+
+      nodes.hideInputs[target.id] = input;
+      nodes.hideTargets.appendChild(label);
+    });
+  }
+
+  /** Enregistre la liste des blocs masqués telle qu'elle est cochée. */
+  async function saveHiddenElements() {
+    const hiddenElements = Object.keys(nodes.hideInputs).filter(
+      (id) => nodes.hideInputs[id].checked
+    );
+    const settings = await EDP.settings.set({ hiddenElements });
+    currentSettings = settings;
+    return settings;
+  }
+
+  /** Palette réellement affichée (préréglage du mode résolu + surcharges). */
+  function effectivePalette(settings = currentSettings) {
+    if (!settings) return null;
+    return EDP.themePresets.paletteFor(
+      settings.themePreset,
+      EDP.theme.current.resolved,
+      settings.themeOverrides
+    );
+  }
+
+  /** Aligne les contrôles d'apparence sur l'état réel. */
+  function paintLookControls(settings = currentSettings) {
+    const palette = effectivePalette(settings);
+    if (!palette) return;
+
+    nodes.colors.accent.value = palette.accent;
+    nodes.colors.bg.value = palette.bg;
+    nodes.colors.text.value = palette.text;
+    nodes.colors.surface.value = palette.surface;
+
+    const radius = Number.parseInt(palette.radius, 10);
+    nodes.radius.value = String(Number.isFinite(radius) ? radius : 10);
+    nodes.radiusValue.textContent = `${nodes.radius.value} px`;
+
+    nodes.font.value = palette.font;
+
+    Array.from(nodes.presets.children).forEach((button) => {
+      button.setAttribute('aria-checked', String(button.dataset.preset === settings.themePreset));
+    });
+  }
+
+  /**
+   * Enregistre un patch d'apparence et l'applique immédiatement.
+   * Le stockage est la source de vérité : les onglets ouverts suivent ensuite
+   * par storage.onChanged, comme pour n'importe quel autre réglage.
+   */
+  async function saveLook(patch) {
+    const settings = await EDP.settings.set(patch);
+    currentSettings = settings;
+    EDP.theme.applyLook(settings);
+    paintTheme();
+    paintLookControls(settings);
+    return settings;
+  }
+
+  /**
+   * Choisir un préréglage repart de sa palette : les surcharges précédentes
+   * sont effacées. Sans ça, « Contraste élevé » garderait le violet du thème
+   * précédent et ne ressemblerait plus à ce qu'il annonce.
+   *
+   * Exception : « Personnalisé ». Ce thème n'est fait QUE de surcharges ; les
+   * effacer reviendrait à cliquer sur un thème qui ne change rien. On part donc
+   * de la palette actuellement affichée, que l'utilisateur ajuste ensuite.
+   */
+  function applyPreset(id) {
+    const preset = EDP.themePresets.presetById(id);
+
+    if (preset.id === 'personnalise') {
+      const palette = effectivePalette();
+      const overrides = palette
+        ? {
+            accent: palette.accent,
+            bg: palette.bg,
+            text: palette.text,
+            surface: palette.surface,
+            radius: palette.radius,
+            font: palette.font
+          }
+        : {};
+      saveLook({ themePreset: preset.id, themeOverrides: overrides })
+        .then(() => toast('Thème personnalisé : ajustez les couleurs ci-dessous.'))
+        .catch((error) => console.warn('[ED+] thème personnalisé non enregistré :', error));
+      return;
+    }
+
+    saveLook({ themePreset: preset.id, themeOverrides: {}, theme: preset.mode || 'auto' })
+      .then(() => toast(`Thème « ${preset.label} » appliqué.`))
+      .catch((error) => console.warn('[ED+] préréglage non enregistré :', error));
+  }
+
+  /** Aperçu local pendant qu'on déplace un curseur : aucune écriture. */
+  function previewLook(patch) {
+    if (!currentSettings) return;
+    EDP.theme.applyLook({
+      ...currentSettings,
+      themeOverrides: { ...currentSettings.themeOverrides, ...patch }
+    });
+  }
+
+  /** Surcharges courantes + un changement, prêtes pour le stockage. */
+  function withOverride(key, value) {
+    const base = currentSettings ? currentSettings.themeOverrides : {};
+    return { ...base, [key]: value };
+  }
+
+  function wireLook() {
+    Object.entries(nodes.colors).forEach(([key, input]) => {
+      input.addEventListener('input', () => previewLook({ [key]: input.value }));
+      input.addEventListener('change', () => {
+        saveLook({ themeOverrides: withOverride(key, input.value) }).catch((error) =>
+          console.warn('[ED+] couleur non enregistrée :', error)
+        );
+      });
+    });
+
+    nodes.radius.addEventListener('input', () => {
+      nodes.radiusValue.textContent = `${nodes.radius.value} px`;
+      previewLook({ radius: `${nodes.radius.value}px` });
+    });
+    nodes.radius.addEventListener('change', () => {
+      saveLook({ themeOverrides: withOverride('radius', `${nodes.radius.value}px`) }).catch((error) =>
+        console.warn('[ED+] rayon non enregistré :', error)
+      );
+    });
+
+    nodes.font.addEventListener('change', () => {
+      saveLook({ themeOverrides: withOverride('font', nodes.font.value) }).catch((error) =>
+        console.warn('[ED+] police non enregistrée :', error)
+      );
+    });
+
+    // Densité : appliquée immédiatement au popup (applyLook pose l'attribut sur
+    // <html>) et, par le stockage, à tous les onglets École Directe ouverts.
+    nodes.density.addEventListener('change', () => {
+      saveLook({ density: nodes.density.value }).catch((error) =>
+        console.warn('[ED+] densité non enregistrée :', error)
+      );
+    });
+
+    nodes.themeReset.addEventListener('click', () => {
+      saveLook({ themeOverrides: {} })
+        .then(() => toast('Couleurs et formes du préréglage restaurées.'))
+        .catch((error) => console.warn('[ED+] réinitialisation du thème :', error));
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -258,18 +513,44 @@
     openSite();
   }
 
-  /** « Paramètres » : la carte est plus bas dans le popup, on y va. */
-  function showSettings() {
+  // ---------------------------------------------------------------------------
+  // Panneau de paramètres avancés
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Ouvre la seconde vue.
+   *
+   * On masque le contenu principal au lieu de le laisser au-dessus : le popup
+   * ne fait que 360 px de large, et un panneau de réglages poussé sous la
+   * moyenne demanderait un défilement long pour atteindre les premières cases.
+   */
+  function openAdvanced() {
+    nodes.advanced.hidden = false;
+    nodes.summary.hidden = true;
+    nodes.actions.hidden = true;
+    nodes.settings.hidden = true;
+    nodes.privacy.hidden = true;
+
+    if (nodes.main) nodes.main.scrollTop = 0;
     try {
-      nodes.settings.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      nodes.advancedBack.focus({ preventScroll: true });
     } catch (error) {
-      // Firefox 109 sans options de défilement : saut direct, sans animation.
-      nodes.settings.scrollIntoView();
+      nodes.advancedBack.focus();
     }
+  }
+
+  /** Referme la vue avancée et restitue le résumé. */
+  function closeAdvanced() {
+    nodes.advanced.hidden = true;
+    nodes.summary.hidden = false;
+    nodes.actions.hidden = false;
+    nodes.settings.hidden = false;
+    nodes.privacy.hidden = false;
+    if (nodes.main) nodes.main.scrollTop = 0;
     try {
-      nodes.theme.focus({ preventScroll: true });
+      nodes.openAdvanced.focus({ preventScroll: true });
     } catch (error) {
-      nodes.theme.focus();
+      nodes.openAdvanced.focus();
     }
   }
 
@@ -279,18 +560,31 @@
 
   async function loadSettingsIntoUi() {
     const settings = await EDP.settings.get();
-    EDP.theme.apply(settings.theme);
+    currentSettings = settings;
+    // applyLook() applique le mode ET la palette (préréglage + surcharges).
+    EDP.theme.applyLook(settings);
     paintTheme();
+    paintLookControls(settings);
 
     nodes.theme.value = settings.theme;
     nodes.enabled.checked = settings.enabled;
     nodes.modules.grades.checked = settings.modules.grades !== false;
+    nodes.modules.sidebar.checked = settings.modules.sidebar !== false;
+    nodes.modules.today.checked = settings.modules.today !== false;
+    nodes.todayPlacement.value = settings.todayPlacement === 'panel' ? 'panel' : 'home';
     nodes.modules.simulator.checked = settings.modules.simulator !== false;
     nodes.modules.timetable.checked = settings.modules.timetable !== false;
     nodes.modules.homework.checked = settings.modules.homework !== false;
     nodes.modules.themeToggle.checked = settings.modules.themeToggle !== false;
     nodes.modules.averageHud.checked = settings.modules.averageHud !== false;
     nodes.badge.checked = settings.badgeNewGrades !== false;
+
+    nodes.density.value = settings.density || 'normal';
+    const hidden = Array.isArray(settings.hiddenElements) ? settings.hiddenElements : [];
+    Object.entries(nodes.hideInputs).forEach(([id, input]) => {
+      input.checked = hidden.includes(id);
+    });
+
     return settings;
   }
 
@@ -306,10 +600,16 @@
 
     nodes.badge.addEventListener('change', () => EDP.settings.set({ badgeNewGrades: nodes.badge.checked }));
 
+    nodes.todayPlacement.addEventListener('change', () =>
+      EDP.settings.set({ todayPlacement: nodes.todayPlacement.value })
+    );
+
     nodes.reset.addEventListener('click', async () => {
       await EDP.settings.reset();
       await loadSettingsIntoUi();
       toast('Réglages réinitialisés.');
+      // loadSettingsIntoUi() vient de remettre le préréglage par défaut :
+      // les contrôles d'apparence ont été repeints avec lui.
     });
   }
 
@@ -335,16 +635,43 @@
     nodes.toast = document.getElementById('toast');
     nodes.settings = document.getElementById('settings');
 
+    // Vue avancée : le conteneur, son bouton de retour et les sections qu'elle
+    // remplace. `hero` est la section du résumé (id="summary").
+    nodes.main = document.querySelector('.edp-popup__main');
+    nodes.summary = document.getElementById('summary');
+    nodes.actions = document.querySelector('.edp-actions');
+    nodes.privacy = document.querySelector('.edp-popup__privacy');
+    nodes.advanced = document.getElementById('advanced');
+    nodes.advancedBack = document.getElementById('advanced-back');
+    nodes.openAdvanced = document.getElementById('advanced-open');
+    nodes.density = document.getElementById('density');
+    nodes.hideTargets = document.getElementById('hide-targets');
+    nodes.hideInputs = {};
+
     nodes.enabled = document.getElementById('enabled');
     nodes.theme = document.getElementById('theme');
+    nodes.presets = document.getElementById('presets');
+    nodes.colors = {
+      accent: document.getElementById('color-accent'),
+      bg: document.getElementById('color-bg'),
+      text: document.getElementById('color-text'),
+      surface: document.getElementById('color-surface')
+    };
+    nodes.radius = document.getElementById('radius');
+    nodes.radiusValue = document.getElementById('radius-value');
+    nodes.font = document.getElementById('font');
+    nodes.themeReset = document.getElementById('theme-reset');
     nodes.modules = {
       grades: document.getElementById('module-grades'),
+      sidebar: document.getElementById('module-sidebar'),
+      today: document.getElementById('module-today'),
       simulator: document.getElementById('module-simulator'),
       timetable: document.getElementById('module-timetable'),
       homework: document.getElementById('module-homework'),
       themeToggle: document.getElementById('module-theme-toggle'),
       averageHud: document.getElementById('module-average-hud')
     };
+    nodes.todayPlacement = document.getElementById('today-placement');
     nodes.badge = document.getElementById('badge');
     nodes.reset = document.getElementById('reset');
   }
@@ -353,11 +680,17 @@
     bindNodes();
     nodes.version.textContent = `v${EDP.VERSION} · non officiel`;
 
+    buildFontChoices();
+    buildDensityChoices();
+    buildHideChoices();
     wireTheme();
+    wireLook();
     wireSettings();
     nodes.openSite.addEventListener('click', openSite);
     nodes.openSimulator.addEventListener('click', openSimulator);
-    nodes.openSettings.addEventListener('click', showSettings);
+    nodes.openSettings.addEventListener('click', openAdvanced);
+    nodes.openAdvanced.addEventListener('click', openAdvanced);
+    nodes.advancedBack.addEventListener('click', closeAdvanced);
 
     const settings = await loadSettingsIntoUi();
 

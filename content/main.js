@@ -150,7 +150,7 @@
     refreshing = true;
     try {
       const settings = await EDP.settings.get();
-      EDP.theme.apply(settings.theme);
+      EDP.theme.applyLook(settings);
       const data = await EDP.data.collect({ settings });
       ctx = { settings, data, route: EDP.router.current, panel };
       await EDP.registry.sync(ctx);
@@ -172,7 +172,7 @@
   /** Montée initiale complète. */
   async function start() {
     const settings = await EDP.settings.get();
-    EDP.theme.apply(settings.theme);
+    EDP.theme.applyLook(settings);
     teardown.push(EDP.darkMode.start(() => (ctx && ctx.settings ? ctx.settings.theme : 'auto')));
 
     if (!settings.enabled) {
@@ -193,7 +193,7 @@
     EDP.settings.subscribe(async (next) => {
       if (!next.enabled) return stop();
       if (!running) return start();
-      EDP.theme.apply(next.theme);
+      EDP.theme.applyLook(next);
       return refresh('settings');
     });
   }
@@ -301,6 +301,7 @@
         average: ctx && ctx.data && ctx.data.general ? ctx.data.general.average20 : null,
         warnings:
           ctx && ctx.data && Array.isArray(ctx.data.warnings) ? ctx.data.warnings.slice(0, 5) : [],
+        theme: { ...EDP.theme.current, ...EDP.theme.look },
         modules: EDP.registry.status(),
         panel: Boolean(panel)
       });

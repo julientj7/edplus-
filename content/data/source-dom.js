@@ -31,11 +31,99 @@
     notesContainers: ['#notes', '#divNotes', '[id*="note" i]', '[class*="note" i]', '.notes'],
     notesHeading: 'caption, legend, h1, h2, h3, h4, h5, [class*="matiere" i], [class*="subject" i]',
     periodLabel: '#periode, select[name*="periode" i], [class*="periode" i], [class*="trimestre" i]',
-    timetableRoots: ['#emploiDuTemps', '#edt', '[id*="emploi" i]', '[class*="emploi" i]', '[class*="timetable" i]'],
+    timetableRoots: [
+      '#emploiDuTemps',
+      '#edt',
+      '[id*="emploi" i]',
+      '[class*="emploi" i]',
+      '[class*="timetable" i]',
+      '[id*="edt" i]',
+      '[class*="edt" i]',
+      '[id*="planning" i]',
+      '[class*="planning" i]',
+      // Widget « mes cours du jour » de la page d'accueil.
+      '[class*="cours" i]'
+    ],
     timetableRows: 'table tbody tr, table tr',
-    homeworkRoots: ['#cahierDeTexte', '#cdt', '[id*="cahier" i]', '[class*="cahier" i]', '[class*="devoir" i]'],
-    homeworkRows: 'table tbody tr, li, .devoir, [class*="devoir" i]'
+    homeworkRoots: [
+      '#cahierDeTexte',
+      '#cdt',
+      '[id*="cahier" i]',
+      '[class*="cahier" i]',
+      '[class*="devoir" i]',
+      '[id*="devoir" i]',
+      // Widget « travail à faire » de la page d'accueil.
+      '[id*="travail" i]',
+      '[class*="travail" i]',
+      '[class*="a-faire" i]',
+      '[class*="homework" i]'
+    ],
+    homeworkRows: 'table tbody tr, li, .devoir, [class*="devoir" i]',
+    /** Conteneur de la page d'accueil (tableau de bord du site). */
+    homeRoots: [
+      '#accueil',
+      '#tableauDeBord',
+      '[id*="accueil" i]',
+      '[class*="accueil" i]',
+      '[class*="dashboard" i]'
+    ],
+    /** Blocs « absences » et « retards » (vie scolaire, accueil). */
+    absenceRoots: [
+      '#absences',
+      '#retards',
+      '#vieScolaire',
+      '[id*="absence" i]',
+      '[id*="retard" i]',
+      '[class*="absence" i]',
+      '[class*="retard" i]',
+      '[class*="vie-scolaire" i]',
+      '[class*="viescolaire" i]'
+    ]
   };
+
+  /**
+   * Blocs du site que l'utilisateur peut masquer (paramètres avancés).
+   *
+   * Les identifiants sont ceux de EDP.HIDE_TARGETS (shared/constants.js) : le
+   * popup affiche les libellés, ce fichier fournit les sélecteurs. Volontairement
+   * larges (« pub », « actualit »…) car le balisage réel du site n'est pas
+   * public ; c'est ici qu'on ajuste si un bloc est manqué ou masqué à tort.
+   */
+  const HIDE_SELECTORS = {
+    ads: [
+      '[id*="pub" i]',
+      '[class*="pub" i]',
+      '[class*="advert" i]',
+      '[id*="advert" i]',
+      '[class*="banner" i]',
+      '[id*="banner" i]'
+    ],
+    news: [
+      '[id*="actualit" i]',
+      '[class*="actualit" i]',
+      '[class*="news" i]',
+      '[id*="news" i]'
+    ],
+    help: [
+      '[id*="aide" i]',
+      '[class*="aide" i]',
+      '[id*="help" i]',
+      '[class*="help" i]',
+      '[class*="tutoriel" i]'
+    ],
+    footer: ['footer', '#footer', '[class*="footer" i]', '[id*="footer" i]']
+  };
+
+  /**
+   * Garde-fou du masquage : jamais un bloc qui porte l'essentiel.
+   *
+   * Un sélecteur un peu large (« [class*="aide"] ») ne doit pas pouvoir
+   * emporter les notes, l'emploi du temps, le cahier de textes ni nos propres
+   * interfaces. On refuse donc tout élément qui CONTIENT l'un de ces nœuds —
+   * masquer un parent reviendrait à masquer l'écran entier.
+   */
+  const HIDE_GUARD =
+    '#notes, #cahierDeTexte, #emploiDuTemps, #edp-panel-host, #edp-grades-host, #edp-today-host, main, [role="main"]';
 
   /** Une note ressemble à « 12/20 », « 7,5 /10 », « Non significative », « Absent ». */
   const GRADE_TOKEN = /(\d{1,3}(?:[.,]\d+)?)\s*\/\s*(\d{1,3}(?:[.,]\d+)?)/;
@@ -276,37 +364,53 @@
     return { start, end };
   }
 
-  /** Lignes de l'emploi du temps, enrichies (horaire, matière, salle). */
+  /**
+   * Lignes de l'emploi du temps, enrichies (horaire, matière, salle).
+   *
+   * Le conteneur retenu est celui qui contient le PLUS de créneaux, pas le
+   * premier trouvé : sur l'accueil, un lien de menu « Mes cours » peut répondre
+   * avant le widget qui affiche réellement la journée.
+   */
   function timetableRows() {
     const roots = SELECTORS.timetableRoots.map((selector) => $(selector)).filter(Boolean);
-    const scope = roots[0] || document;
-    const rows = $$(SELECTORS.timetableRows, scope).filter((row) => !$$('tr', row).length);
-    return rows
-      .map((row) => {
-        try {
-          const cells = cellTexts(row);
-          if (cells.length < 2) return null;
-          const timeText = cells.find((cell) => parseTimeRange(cell));
-          const range = timeText ? parseTimeRange(timeText) : null;
-          if (!range) return null;
-          const roomCell = cells.find((cell) => /salle|s[0-9]|b[0-9]|amphi/i.test(cell) && !parseDateFr(cell));
-          const subject = cells.find(
-            (cell) => cell !== timeText && cell.length > 2 && !/salle|prof|absent|annul/i.test(cell)
-          );
-          return {
-            row,
-            timeText,
-            start: range.start,
-            end: range.end,
-            subject: normalizeLabel(subject) || 'Cours',
-            room: normalizeLabel(roomCell) || '',
-            cancelled: /annul|absent|pas de cours/i.test(cells.join(' '))
-          };
-        } catch (error) {
-          return null;
-        }
-      })
-      .filter(Boolean);
+    const scopes = roots.length ? roots : [document];
+    let best = [];
+
+    scopes.forEach((scope) => {
+      const rows = $$(SELECTORS.timetableRows, scope).filter((row) => !$$('tr', row).length);
+      const parsed = rows
+        .map((row) => {
+          try {
+            const cells = cellTexts(row);
+            if (cells.length < 2) return null;
+            const timeText = cells.find((cell) => parseTimeRange(cell));
+            const range = timeText ? parseTimeRange(timeText) : null;
+            if (!range) return null;
+            const roomCell = cells.find(
+              (cell) => /salle|s[0-9]|b[0-9]|amphi/i.test(cell) && !parseDateFr(cell)
+            );
+            const subject = cells.find(
+              (cell) => cell !== timeText && cell.length > 2 && !/salle|prof|absent|annul/i.test(cell)
+            );
+            return {
+              row,
+              timeText,
+              start: range.start,
+              end: range.end,
+              subject: normalizeLabel(subject) || 'Cours',
+              room: normalizeLabel(roomCell) || '',
+              cancelled: /annul|absent|pas de cours/i.test(cells.join(' '))
+            };
+          } catch (error) {
+            return null;
+          }
+        })
+        .filter(Boolean);
+
+      if (parsed.length > best.length) best = parsed;
+    });
+
+    return best;
   }
 
   /** Date affichée juste avant une ligne de devoir (souvent un titre de jour). */
@@ -324,37 +428,215 @@
     return null;
   }
 
-  /** Lignes du cahier de textes, enrichies (échéance, matière, état « fait »). */
+  /**
+   * Lignes du cahier de textes, enrichies (échéance, matière, état « fait »).
+   * Même principe que timetableRows() : on garde le conteneur le plus riche.
+   */
   function homeworkRows() {
     const roots = SELECTORS.homeworkRoots.map((selector) => $(selector)).filter(Boolean);
-    const scope = roots[0] || document;
-    const rows = $$(SELECTORS.homeworkRows, scope).filter((row) => !$$('tr', row).length);
-    return rows
-      .map((row) => {
+    const scopes = roots.length ? roots : [document];
+    let best = [];
+
+    scopes.forEach((scope) => {
+      const rows = $$(SELECTORS.homeworkRows, scope).filter((row) => !$$('tr', row).length);
+      const parsed = rows
+        .map((row) => {
+          try {
+            const cells = cellTexts(row);
+            const blob = cells.length ? cells.join(' | ') : normalizeLabel(text(row));
+            if (!blob || blob.length < 4) return null;
+            const ownDate = cells.map(parseDateFr).find(Boolean);
+            const due = ownDate || precedingDate(row) || null;
+            const subject =
+              cells.find((cell) => cell.length > 2 && !parseDateFr(cell) && cell.length < 40) || '';
+            const checkbox = $('input[type="checkbox"]', row);
+            const done =
+              (checkbox && checkbox.checked) ||
+              /fait|termin|rendu|fait\b/i.test(attrBag(row)) ||
+              /fait|termin|rendu/i.test(blob);
+            return {
+              row,
+              due,
+              subject: normalizeLabel(subject) || 'Devoir',
+              label: normalizeLabel(blob).slice(0, 160),
+              done: Boolean(done)
+            };
+          } catch (error) {
+            return null;
+          }
+        })
+        .filter((entry) => entry && entry.label);
+
+      if (parsed.length > best.length) best = parsed;
+    });
+
+    return best;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Page d'accueil : conteneur, moyenne affichée, absences
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Conteneur principal de la page d'accueil.
+   *
+   * Plusieurs sélecteurs candidats, départagés par la SURFACE : un lien de menu
+   * nommé « Accueil » ne doit jamais gagner contre le bloc qui contient tout
+   * l'écran. On impose une substance minimale (80 caractères ou 160 px de haut)
+   * pour écarter justement ces liens.
+   */
+  let homeCache = { at: 0, root: null };
+
+  function homeRoot() {
+    if (homeCache.root && homeCache.root.isConnected && Date.now() - homeCache.at < 1000) {
+      return homeCache.root;
+    }
+
+    let best = null;
+    let bestScore = 0;
+
+    SELECTORS.homeRoots.forEach((selector) => {
+      $$(selector).forEach((node) => {
+        if (!node || !node.isConnected) return;
+        if (node.id === 'edp-today-host') return;
+        let rect;
         try {
-          const cells = cellTexts(row);
-          const blob = cells.length ? cells.join(' | ') : normalizeLabel(text(row));
-          if (!blob || blob.length < 4) return null;
-          const ownDate = cells.map(parseDateFr).find(Boolean);
-          const due = ownDate || precedingDate(row) || null;
-          const subject = cells.find((cell) => cell.length > 2 && !parseDateFr(cell) && cell.length < 40) || '';
-          const checkbox = $('input[type="checkbox"]', row);
-          const done =
-            (checkbox && checkbox.checked) ||
-            /fait|termin|rendu|fait\b/i.test(attrBag(row)) ||
-            /fait|termin|rendu/i.test(blob);
-          return {
-            row,
-            due,
-            subject: normalizeLabel(subject) || 'Devoir',
-            label: normalizeLabel(blob).slice(0, 160),
-            done: Boolean(done)
-          };
+          rect = node.getBoundingClientRect();
         } catch (error) {
-          return null;
+          return;
         }
-      })
-      .filter((entry) => entry && entry.label);
+        const label = text(node);
+        if (label.length < 80 && rect.height < 160) return;
+        const score = rect.width * rect.height + label.length * 10;
+        if (score > bestScore) {
+          best = node;
+          bestScore = score;
+        }
+      });
+    });
+
+    homeCache = { at: Date.now(), root: best };
+    return best;
+  }
+
+  /**
+   * La page courante est-elle l'accueil ?
+   *
+   * Le garde-fou des identifiants d'écran connus évite de prendre une page
+   * Notes ou Cahier de textes pour l'accueil quand un fil d'Ariane contient un
+   * bloc « accueil ». En cas de doute, on répond non : ne rien remplacer vaut
+   * mieux que masquer le mauvais écran.
+   */
+  function isHome() {
+    if (!homeRoot()) return false;
+    if ($('#notes') || $('#cahierDeTexte')) return false;
+    return true;
+  }
+
+  /**
+   * Moyenne générale affichée par le site sur l'accueil.
+   *
+   * Utile quand la page ne contient pas de tableau de notes exploitable : on
+   * lit alors le nombre affiché à côté du libellé « moyenne générale ». Le
+   * libellé d'abord, le nombre ensuite — jamais l'inverse, sinon un compteur
+   * voisin (« 3 absences ») serait pris pour une moyenne.
+   *
+   * @returns {number|null} moyenne sur 20, ou null si rien de fiable
+   */
+  function pageAverage() {
+    const scope = homeRoot() || document.body;
+    if (!scope) return null;
+
+    const labels = $$('h1, h2, h3, h4, h5, p, strong, span, td, th, div', scope).filter(
+      (node) =>
+        !node.children.length &&
+        text(node).length <= 80 &&
+        /moyenne\s*g[ée]n[ée]rale/i.test(text(node))
+    );
+
+    for (const node of labels) {
+      const parts = [
+        text(node.previousElementSibling),
+        text(node),
+        text(node.nextElementSibling)
+      ];
+      // Le nombre est souvent dans la même « tuile » que le libellé : on
+      // l'ajoute seulement si ce conteneur reste petit, sinon on risquerait de
+      // lire un chiffre sans rapport plus loin dans la page.
+      const parent = node.parentElement;
+      if (parent && parent.children.length <= 3) parts.push(text(parent));
+
+      const around = parts.join(' ');
+      const strict = around.match(/(\d{1,2}(?:[.,]\d+)?)\s*\/\s*20/);
+      const loose = around.match(/(?:^|\s)(\d{1,2}(?:[.,]\d+)?)(?=\s|$)/);
+      const value = parseNumber(strict ? strict[1] : loose ? loose[1] : null);
+
+      if (value !== null && value >= 0 && value <= 20) return round2(value);
+    }
+    return null;
+  }
+
+  /**
+   * Absences, retards et exclusions récents affichés sur la page.
+   *
+   * Lecture par le TEXTE de chaque ligne, pas par des colonnes fixes : le site
+   * change rarement les mots « retard » ou « justifié », beaucoup plus souvent
+   * l'ordre des cellules. Une ligne incomprise est ignorée.
+   *
+   * @returns {Array<{kind: string, date: Date|null, duration: string,
+   *   justified: boolean|null, label: string}>}
+   */
+  function absences() {
+    const seen = new Set();
+    const entries = [];
+    const roots = SELECTORS.absenceRoots.map((selector) => $(selector)).filter(Boolean);
+
+    roots.forEach((root) => {
+      let rows = [];
+      try {
+        rows = $$('table tbody tr, table tr, ul li, li, article', root).filter(
+          (row) => !$$('tr', row).length
+        );
+      } catch (error) {
+        return;
+      }
+
+      rows.forEach((row) => {
+        try {
+          const blob = normalizeLabel(text(row));
+          if (blob.length < 4 || blob.length > 240) return;
+          if (!/absent|absence|retard|exclusion|justifi/i.test(blob)) return;
+
+          const key = blob.toLowerCase();
+          if (seen.has(key)) return;
+          seen.add(key);
+
+          const date = parseDateFr(blob);
+          const kind = /retard/i.test(blob)
+            ? 'latency'
+            : /exclusion/i.test(blob)
+              ? 'exclusion'
+              : 'absence';
+          const duration = blob.match(/(?:\d{1,2}\s*h(?:\s*\d{2})?|\d+\s*(?:demi[- ]?journ[ée]es?|jours?|heures?))/i);
+
+          // L'ordre compte : « non justifié » contient « justifié ».
+          const unjustified = /non\s*justifi|injustifi|à\s*justifier|a\s*justifier/i.test(blob);
+          const justified = unjustified ? false : /justifi/i.test(blob) ? true : null;
+
+          entries.push({
+            kind,
+            date,
+            duration: duration ? duration[0] : '',
+            justified,
+            label: blob.slice(0, 160)
+          });
+        } catch (error) {
+          /* ligne illisible ignorée, comme pour les notes */
+        }
+      });
+    });
+
+    return entries;
   }
 
   // ---------------------------------------------------------------------------
@@ -401,6 +683,49 @@
   }
 
   /**
+   * Éléments du site à masquer pour les identifiants demandés.
+   *
+   * Ne supprime rien : renvoie les nœuds, à charge de l'appelant de les marquer
+   * (content/features/cleanup.js pose `data-edp-hidden`, et cleanup.css masque).
+   * C'est la même règle que pour les notes et l'accueil : on ne détruit jamais
+   * le DOM du site, on le masque réversiblement.
+   *
+   * @param {string[]} ids identifiants de EDP.HIDE_TARGETS
+   * @returns {Element[]} nœuds à masquer, sans doublon
+   */
+  function hideTargets(ids) {
+    const wanted = Array.isArray(ids) ? ids : [];
+    const found = [];
+    const seen = new Set();
+
+    wanted.forEach((id) => {
+      const selectors = HIDE_SELECTORS[id];
+      if (!selectors) return;
+
+      selectors.forEach((selector) => {
+        $$(selector).forEach((node) => {
+          try {
+            if (!node || !node.isConnected || seen.has(node)) return;
+            if (node === document.body || node === document.documentElement) return;
+            // Nos propres interfaces ne sont jamais masquées par ce module.
+            if (node.closest && node.closest('#edp-panel-host')) return;
+            if (node.id && node.id.indexOf('edp-') === 0) return;
+            // Jamais un conteneur qui porte l'essentiel de l'écran.
+            if (node.querySelector && node.querySelector(HIDE_GUARD)) return;
+
+            seen.add(node);
+            found.push(node);
+          } catch (error) {
+            /* nœud illisible : on passe au suivant */
+          }
+        });
+      });
+    });
+
+    return found;
+  }
+
+  /**
    * Diagnostic à lancer dans la console de la page : il dit précisément ce que
    * la lecture a trouvé, ce qu'elle a raté, et où ajuster les sélecteurs.
    */
@@ -436,6 +761,9 @@
   // ---------------------------------------------------------------------------
 
   const MARKERS = [
+    // L'accueil passe en premier : s'il est reconnu, c'est lui qui décide (la
+    // vue « Aujourd’hui » remplace tout le contenu principal).
+    { route: EDP.ROUTES.HOME, test: () => isHome() },
     { route: EDP.ROUTES.NOTES, selector: '#notes' },
     { route: EDP.ROUTES.NOTES, test: () => gradeTables().length > 0 },
     { route: EDP.ROUTES.TIMETABLE, selector: '#emploiDuTemps' },
@@ -448,6 +776,7 @@
   EDP.data.sourceDom = {
     id: 'dom',
     SELECTORS,
+    HIDE_SELECTORS,
     MARKERS,
     available,
     read,
@@ -455,6 +784,13 @@
     // Exposés aux fonctionnalités : toute la connaissance du site est ici.
     gradeTables,
     timetableRows,
-    homeworkRows
+    homeworkRows,
+    // Page d'accueil : conteneur, détection et données propres à l'accueil.
+    homeRoot,
+    isHome,
+    pageAverage,
+    absences,
+    // Nettoyage de la page : nœuds à masquer pour les identifiants demandés.
+    hideTargets
   };
 })();

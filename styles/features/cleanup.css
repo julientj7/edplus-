@@ -1,0 +1,19 @@
+/* ==========================================================================
+   styles/features/cleanup.css — masquage des blocs d'origine
+   --------------------------------------------------------------------------
+   Rien n'est supprimé du DOM : content/features/cleanup.js pose
+   `data-edp-hidden="1"` sur les nœuds choisis par l'utilisateur, et cette
+   feuille les retire de l'affichage.
+
+   Pourquoi un attribut plutôt qu'une classe : il décrit un ÉTAT (« masqué par
+   l'extension »), pas un style. Il se retire donc proprement, et aucune règle
+   du site ne peut le réutiliser par accident.
+
+   `display: none !important` est assumé : le site pose souvent ses propres
+   `display` en inline ou avec des sélecteurs très spécifiques, et un bloc
+   « masqué » qui reste visible serait un réglage qui ne fait rien.
+   ========================================================================== */
+
+[data-edp-hidden="1"] {
+  display: none !important;
+}

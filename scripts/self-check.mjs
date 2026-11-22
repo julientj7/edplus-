@@ -41,6 +41,9 @@ const modules = [
   'shared/utils.js',
   'content/data/model.js',
   'content/features/averages.js',
+  // progress.js ne touche pas au DOM : les séries des graphiques se vérifient
+  // donc ici, avec le MÊME moteur de calcul que le relevé de notes.
+  'content/features/progress.js',
   // theme.js n'accède au DOM que dans apply() : il se charge sans navigateur,
   // ce qui permet de tester la logique de bascule (le bouton repose dessus).
   'content/features/theme.js'
@@ -215,6 +218,80 @@ check(
 );
 check('préférence inconnue ramenée à « auto »', theme.normalize('n-importe-quoi') === 'auto');
 check('mode auto résolu dans un des deux états', ['light', 'dark'].includes(theme.resolve('auto')));
+
+// --- 9. Graphiques : périodes et séries ------------------------------------
+// Les courbes ne doivent pas raconter autre chose que le relevé : la dernière
+// valeur de la série « moyenne générale » est comparée à la moyenne calculée
+// par averages.computeBundle() sur exactement les mêmes notes.
+const progress = EDP.progress;
+const datedRaw = [
+  { subject: 'Mathématiques', label: 'D1', value: 10, outOf: 20, coefficient: 1, date: new Date(2026, 8, 15) },
+  { subject: 'Mathématiques', label: 'D2', value: 16, outOf: 20, coefficient: 1, date: new Date(2026, 9, 6) },
+  { subject: 'Français', label: 'D1', value: 12, outOf: 20, coefficient: 1, date: new Date(2026, 9, 1) },
+  { subject: 'Français', label: 'D2', value: 18, outOf: 20, coefficient: 1, date: new Date(2026, 10, 3) }
+];
+const dated = model.buildBundle(
+  datedRaw.concat([
+    // Comptée mais SANS date : elle ne peut pas être placée sur une courbe.
+    { subject: 'Histoire', label: 'Oral', value: 15, outOf: 20, coefficient: 1 }
+  ]),
+  settings
+);
+
+const trimester = progress.periodBounds('trimester', {
+  now: new Date(2026, 10, 20),
+  grades: dated.grades
+});
+check('trimestre : début au 1er septembre', trimester.from.getTime() === new Date(2026, 8, 1).getTime());
+check(
+  'trimestre : fin au 30 novembre inclus',
+  trimester.to.getTime() === new Date(2026, 10, 30, 23, 59, 59, 999).getTime(),
+  trimester.to.toString()
+);
+check('trimestre : bornes annoncées comme estimées', trimester.estimated === true);
+
+const schoolYear = progress.periodBounds('year', { now: new Date(2026, 10, 20) });
+check(
+  'année scolaire : 1er septembre -> 31 août',
+  schoolYear.from.getTime() === new Date(2026, 8, 1).getTime() &&
+    schoolYear.to.getTime() === new Date(2027, 7, 31, 23, 59, 59, 999).getTime()
+);
+
+const custom = progress.periodBounds('custom', {
+  now: new Date(2026, 10, 20),
+  grades: dated.grades,
+  custom: { from: '2026-10-01', to: '2026-10-31' }
+});
+const customSeries = progress.buildSeries(dated.grades, settings, custom);
+check('période personnalisée : seules les notes de la plage sont gardées', customSeries.count === 2, `obtenu ${customSeries.count}`);
+
+// Le trimestre courant est vide (mai 2027) : on se rabat sur le dernier noté.
+const fallback = progress.periodBounds('trimester', {
+  now: new Date(2027, 4, 10),
+  grades: dated.grades
+});
+check(
+  'trimestre sans note : repli sur le dernier trimestre noté',
+  fallback.fallback === true && fallback.from.getTime() === new Date(2026, 8, 1).getTime(),
+  fallback.label
+);
+
+const series = progress.buildSeries(dated.grades, settings, trimester);
+check('série générale : un point par journée notée', series.general.length === 4, `obtenu ${series.general.length}`);
+// Référence : le moteur du relevé, sur les seules notes datées (une note sans
+// date ne peut pas être placée sur l'axe du temps, la courbe l'ignore).
+const datedOnly = averages.computeBundle(model.buildBundle(datedRaw, settings), settings);
+check(
+  'série générale : dernière valeur = moyenne calculée des notes datées',
+  series.general[series.general.length - 1].value === datedOnly.general.average20,
+  `courbe ${series.general[series.general.length - 1].value} ≠ relevé ${datedOnly.general.average20}`
+);
+check('série : une note sans date signalée, pas tracée', series.undated === 1, `obtenu ${series.undated}`);
+
+const maths = series.subjects.find((subject) => subject.name === 'Mathématiques');
+check('moyennes par matière : deux marques successives', maths.points.length === 2, `obtenu ${maths.points.length}`);
+close('moyenne courante de la matière après la seconde note', maths.points[1].value, 13);
+check('matière sans note datée absente des courbes', !series.subjects.some((subject) => subject.name === 'Histoire'));
 
 // --- Rapport --------------------------------------------------------------
 const label = (entry) => `${entry.passed ? 'ok  ' : 'FAIL'} ${entry.label}${entry.detail ? ` — ${entry.detail}` : ''}`;

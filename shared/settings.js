@@ -35,6 +35,9 @@
     if (!stored || typeof stored !== 'object') return base;
     const merged = { ...base, ...stored };
     merged.modules = { ...base.modules, ...(stored.modules || {}) };
+    // Fusion clé par clé, comme `modules` : sans ça, écrire une seule couleur
+    // personnalisée effacerait les autres surcharges du thème.
+    merged.themeOverrides = { ...base.themeOverrides, ...(stored.themeOverrides || {}) };
     merged.coefficientOverrides = { ...(stored.coefficientOverrides || {}) };
     merged.excludedSubjects = Array.isArray(stored.excludedSubjects)
       ? stored.excludedSubjects.slice()

@@ -1,0 +1,325 @@
+/* ==========================================================================
+   styles/components/charts.css — graphiques d'évolution (shadow root)
+   ------------------------------------------------------------------------
+   Chargé UNIQUEMENT dans le shadow root de #edp-charts-host (voir
+   content/features/charts.js). Le site ne peut pas déformer les courbes, et
+   les courbes ne peuvent pas atteindre le site.
+
+   Aucune couleur en dur : les six teintes de courbes viennent de tokens.css
+   (--edp-chart-1 à 6, dérivées de l'accent et des couleurs sémantiques), les
+   grilles et les textes des variables de thème. Le mode sombre, le préréglage
+   et la densité suivent donc les réglages sans une règle de plus.
+
+   Les espacements n'utilisent que --edp-space-* : la densité de l'interface
+   s'applique aussi ici (voir [data-edp-density] dans tokens.css).
+   ========================================================================== */
+
+:host {
+  all: initial; /* la page ne transmet aucun style héritable */
+  display: block;
+  font-family: var(--edp-font);
+  color: var(--edp-text);
+}
+
+.edp-charts {
+  box-sizing: border-box;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 var(--edp-space-4) var(--edp-space-5);
+  color: var(--edp-text);
+  font-family: var(--edp-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.edp-charts *,
+.edp-charts *::before,
+.edp-charts *::after {
+  box-sizing: border-box;
+}
+
+/* --- En-tête ------------------------------------------------------------- */
+.edp-charts__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--edp-space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--edp-space-4);
+}
+
+.edp-charts__titles {
+  min-width: 0;
+}
+
+.edp-charts__eyebrow {
+  margin: 0 0 6px;
+  color: var(--edp-muted);
+  font: 700 11px/1.2 var(--edp-font);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.edp-charts__title {
+  margin: 0;
+  color: var(--edp-text);
+  font-size: clamp(20px, 2.4vw, 24px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.edp-charts__subtitle {
+  margin: 6px 0 0;
+  max-width: 58ch;
+  color: var(--edp-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.edp-charts__toggle {
+  flex: 0 0 auto;
+  padding: var(--edp-space-2) var(--edp-space-3);
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-sm);
+  background: var(--edp-surface);
+  color: var(--edp-text);
+  font: 600 12px/1.2 var(--edp-font);
+  cursor: pointer;
+}
+
+.edp-charts__toggle:hover {
+  border-color: var(--edp-line);
+  background: var(--edp-surface-2);
+}
+
+.edp-charts__toggle:focus-visible,
+.edp-charts__period:focus-visible,
+.edp-chart-legend__item:focus-visible,
+.edp-charts__date:focus-visible {
+  outline: none;
+  box-shadow: var(--edp-ring);
+}
+
+/* --- Barre de période ---------------------------------------------------- */
+.edp-charts__panel[hidden],
+.edp-charts__custom[hidden],
+.edp-chart-legend[hidden] {
+  display: none;
+}
+
+.edp-charts__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--edp-space-3);
+  flex-wrap: wrap;
+}
+
+.edp-charts__periods {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-sm);
+  background: var(--edp-surface-2);
+  gap: 2px;
+}
+
+.edp-charts__period {
+  padding: 6px var(--edp-space-3);
+  border: 0;
+  border-radius: calc(var(--edp-radius-sm) - 2px);
+  background: transparent;
+  color: var(--edp-muted);
+  font: 600 12px/1.2 var(--edp-font);
+  cursor: pointer;
+}
+
+.edp-charts__period[data-active="1"] {
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  box-shadow: var(--edp-shadow-sm);
+}
+
+.edp-charts__custom {
+  display: flex;
+  align-items: center;
+  gap: var(--edp-space-2);
+  flex-wrap: wrap;
+}
+
+.edp-charts__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--edp-muted);
+  font: 600 12px/1.2 var(--edp-font);
+}
+
+.edp-charts__field-label {
+  color: var(--edp-muted);
+  font-weight: 600;
+}
+
+.edp-charts__date {
+  padding: 5px var(--edp-space-2);
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius-sm);
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  font: 500 12px/1.2 var(--edp-font);
+}
+
+.edp-charts__range {
+  margin: var(--edp-space-2) 0 var(--edp-space-3);
+  color: var(--edp-muted);
+  font-size: 12px;
+}
+
+/* --- Cartes de graphiques ------------------------------------------------ */
+.edp-charts__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--edp-space-3);
+}
+
+.edp-chart {
+  padding: var(--edp-space-3) var(--edp-space-4) var(--edp-space-4);
+  border: 1px solid var(--edp-border);
+  border-radius: var(--edp-radius);
+  background: var(--edp-surface);
+}
+
+.edp-chart__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--edp-space-3);
+}
+
+.edp-chart__titles {
+  min-width: 0;
+}
+
+.edp-chart__title {
+  margin: 0;
+  color: var(--edp-text);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.edp-chart__hint {
+  margin: 3px 0 0;
+  color: var(--edp-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.edp-chart__value {
+  flex: 0 0 auto;
+  color: var(--edp-text);
+  font: 700 14px/1.2 var(--edp-font);
+  font-variant-numeric: tabular-nums;
+}
+
+.edp-chart__body {
+  margin-top: var(--edp-space-2);
+}
+
+.edp-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* --- Éléments du SVG (classes, jamais d'attributs de couleur en dur) ----- */
+.edp-chart__grid-line {
+  stroke: var(--edp-border);
+  stroke-width: 1;
+}
+
+.edp-chart__axis-label {
+  fill: var(--edp-muted);
+  font-family: var(--edp-font);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.edp-chart__line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.edp-chart__area {
+  fill: var(--edp-accent-soft);
+  stroke: none;
+}
+
+.edp-chart__dot {
+  stroke: var(--edp-surface);
+  stroke-width: 2;
+}
+
+.edp-chart__empty {
+  margin: var(--edp-space-3) 0 var(--edp-space-2);
+  padding: var(--edp-space-3);
+  border: 1px dashed var(--edp-border);
+  border-radius: var(--edp-radius-sm);
+  color: var(--edp-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* --- Légende des matières ------------------------------------------------ */
+.edp-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--edp-space-2);
+}
+
+.edp-chart-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px var(--edp-space-2) 4px 6px;
+  border: 1px solid var(--edp-border);
+  border-radius: 999px;
+  background: var(--edp-bg);
+  color: var(--edp-text);
+  font: 600 11px/1.2 var(--edp-font);
+  cursor: pointer;
+}
+
+.edp-chart-legend__item[aria-pressed="false"] {
+  opacity: 0.45;
+}
+
+.edp-chart-legend__swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--edp-chart-color, var(--edp-accent));
+}
+
+.edp-chart-legend__name {
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edp-chart-legend__value {
+  color: var(--edp-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Pied ----------------------------------------------------------------- */
+.edp-charts__foot {
+  margin: var(--edp-space-3) 0 0;
+  color: var(--edp-muted);
+  font-size: 11px;
+}
